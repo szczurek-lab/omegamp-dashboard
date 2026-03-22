@@ -1,76 +1,100 @@
 # OmegAMP Interactive Dashboard
 
-Interactive companion to the OmegAMP paper — a generative diffusion framework for antimicrobial peptide design.
+Interactive companion to the OmegAMP paper -- a generative diffusion framework for antimicrobial peptide design.
 
 ## Quick start
 
 ```bash
 pip install modlamp
+
+# Build locally
+python build_dashboard.py --data-dir data --output docs/index.html
+
+# Or build + encrypt with password
 npm install -g staticrypt   # only needed for password protection
-
-# Build + encrypt
 ./deploy.sh --password YOUR_SECRET_HERE
-
-# Or build without password
-./deploy.sh
 ```
+
+## Deploy with GitHub Actions (recommended)
+
+The repository includes a workflow that builds the dashboard and deploys it to GitHub Pages automatically on every push to `main`.
+
+### Setup
+
+1. Push this repo to GitHub.
+2. Go to **Settings > Pages > Source** and select **GitHub Actions**.
+3. (Optional) To enable password protection, go to **Settings > Secrets and variables > Actions** and add a repository secret named `DASHBOARD_PASSWORD`.
+4. Push to `main` or trigger the workflow manually from the **Actions** tab.
+
+The workflow will:
+- Install Python + modlAMP
+- Run `build_dashboard.py` to produce the HTML
+- Encrypt with StatiCrypt if `DASHBOARD_PASSWORD` is set
+- Deploy to GitHub Pages
+
+If no password secret is configured the dashboard is published unprotected.
+
+### Manual deploy (alternative)
+
+For environments without GitHub Actions, the `deploy.sh` script builds the dashboard into `docs/` for branch-based Pages deployment:
+
+```bash
+./deploy.sh --password YOUR_SECRET_HERE
+git add -A && git commit -m 'update dashboard' && git push
+```
+
+Then set **Settings > Pages > Source** to deploy from branch `main`, folder `/docs`.
 
 ## Password protection
 
-The dashboard is AES-encrypted with [StatiCrypt](https://github.com/robinmoisson/staticrypt). Without the password, the page source is an encrypted blob — peptide sequences, MIC data, and all assay results are unreadable.
+The dashboard is AES-encrypted with [StatiCrypt](https://github.com/robinmoisson/staticrypt). Without the password, the page source is an encrypted blob -- peptide sequences, MIC data, and all assay results are unreadable.
 
 - Visitors see a login page and must enter the password
 - "Remember me" saves a hashed credential in the browser for 30 days
-- To change the password: `./deploy.sh --password NEW_PASSWORD` and push
-
-For local development, an unencrypted copy is kept at `docs/index_unprotected.html`.
-
-## Deploy on GitHub Pages
-
-1. Push this repo to GitHub
-2. **Settings → Pages → Source**: Deploy from branch `main`, folder `/docs`
-3. Share the URL + password with collaborators
+- To change the password: update the `DASHBOARD_PASSWORD` secret and re-run the workflow
 
 ## Views
 
 | Tab | Description |
 |-----|-------------|
-| **Therapeutic Index** | MIC vs CC50/HC50 scatter with TI diagonal lines, strain selector |
-| **Physicochemical** | 8 descriptors (charge, hydrophobicity, moment, aromaticity, ...) |
-| **Activity Heatmap** | MIC across 20 strains + CC50/HC50/TI, sortable by any column |
-| **Membrane** | NPN/DiSC3(5) quadrant plots for membrane disruption profiling |
-| **Binding** | LPS neutralization (dose-response ± Ca²⁺) and DNA binding (ΔA) |
+| **Activity** | MIC across 20 strains + CC50/HC50/TI, sortable by family, group, or any column |
+| **Physicochemical Landscape** | 8 descriptors (charge, hydrophobicity, moment, aromaticity, ...) with strain-selectable MIC coloring |
+| **Membrane Activity** | NPN/DiSC3(5) quadrant plots for membrane disruption profiling |
+| **Target Binding** | LPS neutralization (dose-response +/- Ca2+) and DNA binding (deltaA), family-grouped bar charts |
 | **Structure** | BeStSel secondary structure across 4 solvents |
+| **Safety** | MIC vs CC50/HC50 scatter with TI diagonal lines, strain selector |
 
 ## Features
 
+- **Experiment group filters** -- De novo, Inactive-to-active, LPS-binding, DNA-binding with All/None buttons
+- **Shared strain selector** -- choose strains for MIC geometric mean across Safety and Physicochemical views
 - Shared family/category filters across all tabs
 - Search by peptide name
-- Pin peptides — persists across tab switches
+- Pin peptides -- persists across tab switches
 - Brush-to-zoom on scatter plots
 - Click column headers to sort in heatmap
-- ⬇ Export CSV — download currently filtered data
-- URL state — shareable links that restore exact view (`#hm/fam=BoCo1/pin=Ω-AP-BoCo1-3`)
+- Export CSV -- download currently filtered data
+- URL state -- shareable links that restore exact view
 
 ## Input data
 
 | File | Rows | Required | Description |
 |------|------|----------|-------------|
-| `omegamp_reference_table.csv` | 217 | ✓ | Peptide metadata |
-| `mic.csv` | 217 | ✓ | MIC across 20 bacterial strains |
-| `cc50.csv` | 215 | ✓ | Cytotoxicity CC50 |
-| `hc50.csv` | 215 | ✓ | Hemolysis HC50 |
+| `omegamp_reference_table.csv` | 217 | yes | Peptide metadata |
+| `mic.csv` | 217 | yes | MIC across 20 bacterial strains |
+| `cc50.csv` | 215 | yes | Cytotoxicity CC50 |
+| `hc50.csv` | 215 | yes | Hemolysis HC50 |
 | `disc.csv` | 196 | | DiSC3(5) membrane depolarization |
 | `npn.csv` | 196 | | NPN outer membrane permeabilization |
 | `bestsel.csv` | 190 | | BeStSel secondary structure |
 | `lps_binding.csv` | 577 | | LPS binding (BC displacement) |
-| `dna_binding.csv` | 111 | | DNA binding (ΔA) |
+| `dna_binding.csv` | 111 | | DNA binding (deltaA) |
 
 Optional files are loaded if present; tabs with missing data render empty.
 
 ## Strain panel
 
-20 strains (15 Gram−, 5 Gram+), including 8 MDR clinical isolates:
+20 strains (15 Gram-, 5 Gram+), including 8 MDR clinical isolates:
 
 | Resistance | Strain | ATCC # |
 |------------|--------|--------|
@@ -83,6 +107,6 @@ Optional files are loaded if present; tabs with missing data render empty.
 
 ## Dependencies
 
-- **Python 3.8+** with [modlAMP](https://modlamp.org/) — physicochemical descriptors
-- **Node.js** with [StatiCrypt](https://github.com/robinmoisson/staticrypt) — password protection (optional)
-- **D3.js v7** — loaded from CDN at runtime, no local install needed
+- **Python 3.8+** with [modlAMP](https://modlamp.org/) -- physicochemical descriptors
+- **Node.js** with [StatiCrypt](https://github.com/robinmoisson/staticrypt) -- password protection (optional)
+- **D3.js v7** -- loaded from CDN at runtime, no local install needed

@@ -81,12 +81,12 @@ body{font-family:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;background:#f
 <div class="hdr">
 <h1><span class="omega">Ω</span> OmegAMP</h1>
 <div class="tabs">
-<button class="tab on" data-v="ti">Therapeutic Index</button>
-<button class="tab" data-v="pc">Physicochemical</button>
-<button class="tab" data-v="hm">Activity Heatmap</button>
-<button class="tab" data-v="mb">Membrane</button>
-<button class="tab" data-v="bd">Binding</button>
+<button class="tab on" data-v="hm">Activity</button>
+<button class="tab" data-v="pc">Physicochemical Landscape</button>
+<button class="tab" data-v="mb">Membrane Activity</button>
+<button class="tab" data-v="bd">Target Binding</button>
 <button class="tab" data-v="ss">Structure</button>
+<button class="tab" data-v="ti">Safety</button>
 </div>
 <div class="srch">
 <button id="exportBtn" class="bt" style="margin-right:8px;color:#fafaf9;border-color:#57534e;background:#3a3533">⬇ Export CSV</button>
@@ -95,7 +95,7 @@ body{font-family:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;background:#f
 </div>
 </div>
 
-<div class="vw on" id="v-ti">
+<div class="vw" id="v-ti">
 <div class="ro">
 <label>X:</label><select id="ti-xa"><option value="mic" selected>MIC geometric mean</option><option value="cc50">CC50</option><option value="hc50">HC50</option></select>
 <label>Y:</label><select id="ti-ya"><option value="mic">MIC geometric mean</option><option value="cc50" selected>CC50</option><option value="hc50">HC50</option></select>
@@ -115,6 +115,7 @@ body{font-family:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;background:#f
 
 <div class="vw" id="v-pc">
 <div class="ro"><label>X:</label><select id="pc-xa"></select><label>Y:</label><select id="pc-ya"></select>
+<span style="position:relative"><button class="bt" id="pc-sb">Strains: All (20)</button><div class="pop" id="pc-pop"></div></span>
 <button id="pc-zr" class="bt rs" style="display:none">Reset zoom</button></div>
 <div class="ro"><label>Color:</label><span id="pc-cb"></span></div>
 <div class="fbar" id="pc-fbar"></div>
@@ -127,7 +128,7 @@ body{font-family:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;background:#f
 <div class="ft" id="pc-ft"></div>
 </div>
 
-<div class="vw" id="v-hm">
+<div class="vw on" id="v-hm">
 <div class="ro">
 <label>Sort:</label><span id="hm-sort" class="hm-sort"></span>
 <span style="position:relative;margin-left:8px"><button class="bt" id="hm-sb">Columns: All (20)</button><div class="pop" id="hm-pop"></div></span>
@@ -223,20 +224,45 @@ var FC={"":"#6b7280","Mammutin-1":"#e11d48","GQ20":"#f59e0b","BoCo1":"#10b981","
 var ML={DP:"De novo (prototype-guided)",DT:"De novo (targeted)",AP:"Analog (prototype-guided)",AT:"Analog (targeted)",AU:"Analog (unconditional)",AMT:"Analog (motif+targeted)","":""};
 var FAMS=[];P.forEach(function(p){if(p.c==="analog"&&FAMS.indexOf(p.p)<0)FAMS.push(p.p)});FAMS.sort();
 
-function micC(p){return p.mic==null?"#d4d4d4":d3.interpolateViridis(1-Math.log2(Math.max(1,Math.min(p.mic,64)))/6)}
-function tiC(p){return p.ti==null?"#d4d4d4":d3.interpolateRdYlGn(Math.max(0,Math.min(1,(Math.log2(Math.max(.5,Math.min(p.ti,512)))+1)/10)))}
+/* ---- Experiment groups ---- */
+var GRP_KEYS=["de_novo","inactive_to_active","lps_binding","dna_binding"];
+var GRP_LABELS={"de_novo":"De novo","inactive_to_active":"Inactive to active","lps_binding":"LPS-binding","dna_binding":"DNA-binding","control":"Control"};
+var GRP_COLORS={"de_novo":"#78716c","inactive_to_active":"#3b82f6","lps_binding":"#10b981","dna_binding":"#8b5cf6","control":"#292524"};
+// Build prototype-to-group map from analog objectives
+var _protoGrp={};P.forEach(function(p){
+  if(p.c==="analog"&&p.p&&!_protoGrp[p.p]){
+    if(p.o==="antimicrobial")_protoGrp[p.p]="inactive_to_active";
+    else if(p.o==="LPS-binding")_protoGrp[p.p]="lps_binding";
+    else if(p.o==="DNA-binding")_protoGrp[p.p]="dna_binding";
+  }
+});
+function getGrp(p){
+  if(p.c==="de_novo")return"de_novo";
+  if(p.c==="control")return"control";
+  if(p.c==="prototype")return _protoGrp[p.n]||"inactive_to_active";
+  if(p.o==="antimicrobial")return"inactive_to_active";
+  if(p.o==="LPS-binding")return"lps_binding";
+  if(p.o==="DNA-binding")return"dna_binding";
+  return p.c;
+}
+P.forEach(function(p){p._grp=getGrp(p)});
+
+function micC(p){var v=(p.mics&&tiSI.length)?gm(p.mics,tiSI):p.mic;return v==null?"#d4d4d4":d3.interpolateViridis(1-Math.log2(Math.max(1,Math.min(v,64)))/6)}
+function tiC(p){var v=p.mics&&tiSI.length&&p.cc?p.cc/gm(p.mics,tiSI):p.ti;return v==null?"#d4d4d4":d3.interpolateRdYlGn(Math.max(0,Math.min(1,(Math.log2(Math.max(.5,Math.min(v,512)))+1)/10)))}
 function ccC(p){return p.cc==null?"#d4d4d4":d3.interpolateRdYlGn(Math.max(0,Math.min(1,Math.log2(Math.max(1,Math.min(p.cc,1024)))/10)))}
 function hcC(p){return(p.hc==null||p.hc>=1e6)?"#d4d4d4":d3.interpolateRdYlGn(Math.max(0,Math.min(1,Math.log2(Math.max(1,Math.min(p.hc,1024)))/10)))}
 function nsC(p){return d3.interpolateYlGnBu(p.ns/20)}
 function famCF(p){return p.c==="de_novo"?"#78716c":p.c==="control"?"#292524":(FC[p.p]||"#6b7280")}
+function grpCF(p){return GRP_COLORS[p._grp]||"#6b7280"}
 function qC(p){return p.q==null?"#d4d4d4":d3.interpolatePlasma(Math.max(0,Math.min(1,(p.q+2)/14)))}
 function hC(p){return p.h==null?"#d4d4d4":d3.interpolateRdBu(1-Math.max(0,Math.min(1,(p.h+1)/2)))}
 var CL={
-  mic:{fn:micC,l:"MIC geomean (μM)",g:function(t){return d3.interpolateViridis(1-t)},tk:[{p:0,l:"1"},{p:1/6,l:"2"},{p:2/6,l:"4"},{p:.5,l:"8"},{p:4/6,l:"16"},{p:5/6,l:"32"},{p:1,l:"64"}]},
+  mic:{fn:micC,l:"MIC geomean",g:function(t){return d3.interpolateViridis(1-t)},tk:[{p:0,l:"1"},{p:1/6,l:"2"},{p:2/6,l:"4"},{p:.5,l:"8"},{p:4/6,l:"16"},{p:5/6,l:"32"},{p:1,l:"64"}]},
   ti:{fn:tiC,l:"TI (CC50/MIC)",g:function(t){return d3.interpolateRdYlGn(t)},tk:[{p:0,l:"≤1"},{p:.2,l:"2"},{p:.55,l:"10"},{p:.85,l:"100"},{p:1,l:"≥512"}]},
   cc50:{fn:ccC,l:"CC50 (μM)",g:function(t){return d3.interpolateRdYlGn(t)},tk:[{p:0,l:"1"},{p:.3,l:"8"},{p:.5,l:"32"},{p:.7,l:"128"},{p:1,l:"≥1024"}]},
   hc50:{fn:hcC,l:"HC50 (μM)",g:function(t){return d3.interpolateRdYlGn(t)},tk:[{p:0,l:"1"},{p:.3,l:"8"},{p:.5,l:"32"},{p:.7,l:"128"},{p:1,l:"≥1024"}]},
   family:{fn:famCF,l:"Prototype family"},
+  group:{fn:grpCF,l:"Experiment group"},
   n_strains:{fn:nsC,l:"Active strains (/20)",g:function(t){return d3.interpolateYlGnBu(t)},tk:[{p:0,l:"0"},{p:.25,l:"5"},{p:.5,l:"10"},{p:.75,l:"15"},{p:1,l:"20"}]},
   charge:{fn:qC,l:"Net charge (pH 7.4)",g:function(t){return d3.interpolatePlasma(t)},tk:[{p:0,l:"−2"},{p:2/14,l:"0"},{p:5/14,l:"+3"},{p:8/14,l:"+6"},{p:11/14,l:"+9"},{p:1,l:"+12"}]},
   hydro:{fn:hC,l:"Hydrophobicity (Eisenberg)",g:function(t){return d3.interpolateRdBu(1-t)},tk:[{p:0,l:"−1.0"},{p:.25,l:"−0.5"},{p:.5,l:"0"},{p:.75,l:"+0.5"},{p:1,l:"+1.0"}]}
@@ -245,6 +271,7 @@ var CL={
 /* ---- Shared filter state ---- */
 var shFam=new Set(["__all__"]);
 var shCat={de_novo:true,analog:true,prototype:true,control:true};
+var shGrp={de_novo:true,inactive_to_active:true,lps_binding:true,dna_binding:true};
 function isAll(){return shFam.has("__all__")}
 function togFam(f){
   if(f==="__all__")shFam=new Set(["__all__"]);
@@ -252,8 +279,10 @@ function togFam(f){
   syncUI();rerender();
 }
 function togCat(c){shCat[c]=!shCat[c];syncUI();rerender()}
+function togGrp(g){shGrp[g]=!shGrp[g];syncUI();rerender()}
 function passFilter(p){
   if(!shCat[p.c])return false;
+  if(p.c!=="control"&&shGrp[p._grp]===false)return false;
   if(isAll())return true;
   if(p.c==="de_novo")return shFam.has("de_novo");
   if(p.c==="analog")return shFam.has(p.p);
@@ -265,6 +294,7 @@ function syncUI(){
   var af=isAll();
   document.querySelectorAll("[data-fm]").forEach(function(el){var f=el.dataset.fm;el.checked=(f==="__all__")?af:(af||shFam.has(f))});
   document.querySelectorAll("[data-ct]").forEach(function(el){el.checked=shCat[el.dataset.ct]});
+  document.querySelectorAll("[data-gp]").forEach(function(el){el.checked=shGrp[el.dataset.gp]});
   // Update family popover button labels
   var famLabel=af?"All":shFam.has("de_novo")&&shFam.size===1?"De novo":shFam.size===1?shFam.values().next().value:shFam.size+" selected";
   document.querySelectorAll("[id$='-btn']").forEach(function(b){if(b.id.indexOf("fpop")===0)b.textContent="Families: "+famLabel});
@@ -302,6 +332,24 @@ function buildFilterBar(barId){
   // Separator
   var sep=document.createElement("span");sep.className="sep";bar.appendChild(sep);
 
+  // Group toggles inline
+  var gtitle=document.createElement("span");gtitle.className="ftitle";gtitle.textContent="Group:";bar.appendChild(gtitle);
+  var gAll=document.createElement("button");gAll.className="bt";gAll.textContent="All";gAll.style.fontSize="9px";gAll.style.padding="1px 5px";gAll.style.marginRight="2px";
+  gAll.addEventListener("click",function(){GRP_KEYS.forEach(function(g){shGrp[g]=true});syncUI();rerender()});
+  bar.appendChild(gAll);
+  var gNone=document.createElement("button");gNone.className="bt";gNone.textContent="None";gNone.style.fontSize="9px";gNone.style.padding="1px 5px";gNone.style.marginRight="4px";
+  gNone.addEventListener("click",function(){GRP_KEYS.forEach(function(g){shGrp[g]=false});syncUI();rerender()});
+  bar.appendChild(gNone);
+  [["de_novo","De novo"],["inactive_to_active","Inactive\u2192active"],["lps_binding","LPS-binding"],["dna_binding","DNA-binding"]].forEach(function(a){
+    var lb=document.createElement("label");
+    lb.innerHTML='<input type="checkbox" data-gp="'+a[0]+'" checked> <span style="color:'+GRP_COLORS[a[0]]+'">●</span> '+a[1];
+    lb.querySelector("input").addEventListener("change",function(){togGrp(a[0])});
+    bar.appendChild(lb);
+  });
+
+  // Separator
+  var sep2=document.createElement("span");sep2.className="sep";bar.appendChild(sep2);
+
   // Category toggles inline
   var stitle=document.createElement("span");stitle.className="ftitle";stitle.textContent="Show:";bar.appendChild(stitle);
   [["de_novo","De novo"],["analog","Analog"],["prototype","Prototype"],["control","Antibiotic"]].forEach(function(a){
@@ -324,14 +372,22 @@ function rLeg(el,k){
   var c=CL[k];
   if(!c.g){
     var h='<div style="font-size:11px;font-weight:600;color:#57534e;margin-bottom:3px">'+c.l+'</div><div style="display:flex;flex-wrap:wrap;gap:2px 8px">';
-    [{n:"De novo",c:"#78716c"}].concat(FAMS.map(function(f){return{n:f,c:FC[f]}})).concat([{n:"Control",c:"#292524"}]).forEach(function(i){
+    var items;
+    if(k==="group"){
+      items=GRP_KEYS.map(function(g){return{n:GRP_LABELS[g],c:GRP_COLORS[g]}}).concat([{n:"Control",c:GRP_COLORS.control||"#292524"}]);
+    }else{
+      items=[{n:"De novo",c:"#78716c"}].concat(FAMS.map(function(f){return{n:f,c:FC[f]}})).concat([{n:"Control",c:"#292524"}]);
+    }
+    items.forEach(function(i){
       h+='<div style="display:flex;align-items:center;gap:3px;font-size:10px"><div style="width:9px;height:9px;border-radius:2px;background:'+i.c+';border:1px solid #d6d3d1"></div>'+i.n+'</div>'});
     el.innerHTML=h+'</div>';return;
   }
   var id="lg"+Math.random().toString(36).slice(2,6);
   var stops="";for(var i=0;i<50;i++)stops+='<stop offset="'+(i/49*100)+'%" stop-color="'+c.g(i/49)+'"/>';
-  var tks="";c.tk.forEach(function(t){tks+='<g transform="translate('+(t.p*190)+',0)"><line y1="12" y2="15" stroke="#78716c"/><text y="24" text-anchor="middle" font-size="9" fill="#78716c">'+t.l+'</text></g>'});
-  el.innerHTML='<div style="font-size:11px;font-weight:600;color:#57534e;margin-bottom:3px">'+c.l+'</div><svg width="190" height="30"><defs><linearGradient id="'+id+'">'+stops+'</linearGradient></defs><rect width="190" height="12" rx="2" fill="url(#'+id+')"/>'+tks+'</svg>';
+  var tks="";var barW=170,padL=10;c.tk.forEach(function(t){tks+='<g transform="translate('+(padL+t.p*barW)+',0)"><line y1="12" y2="15" stroke="#78716c"/><text y="24" text-anchor="middle" font-size="9" fill="#78716c">'+t.l+'</text></g>'});
+  var lbl=c.l;
+  if(k==="mic"||k==="ti"){var sl=tiSI.length===20?"all 20":tiSI.length===0?"none":tiSI.length+" strains";lbl+=" ("+sl+")"}
+  el.innerHTML='<div style="font-size:11px;font-weight:600;color:#57534e;margin-bottom:3px">'+lbl+'</div><svg width="190" height="30"><defs><linearGradient id="'+id+'">'+stops+'</linearGradient></defs><rect x="'+padL+'" width="'+barW+'" height="12" rx="2" fill="url(#'+id+')"/>'+tks+'</svg>';
 }
 
 /* ---- Detail HTML ---- */
@@ -340,6 +396,7 @@ function dHTML(p,isPk){
   var ub=isPk?' <span class="up" onclick="doUnpin()">✕</span>':"";
   return'<h3>'+p.n+ub+'</h3><div class="sq">'+p.s+'</div>'+
   '<div class="g2"><span class="lb">Category</span><span class="vl">'+(p.c==="de_novo"?"De novo":p.c[0].toUpperCase()+p.c.slice(1))+'</span>'+
+  '<span class="lb">Group</span><span class="vl" style="color:'+(GRP_COLORS[p._grp]||"#78716c")+'">'+(GRP_LABELS[p._grp]||p._grp)+'</span>'+
   (p.m?'<span class="lb">Mode</span><span>'+(ML[p.m]||p.m)+'</span>':'')+
   (p.p?'<span class="lb">Prototype</span><span>'+p.p+'</span>':'')+
   (p.o?'<span class="lb">Objective</span><span>'+p.o+'</span>':'')+'</div>'+
@@ -457,10 +514,45 @@ function sup(n){var e=Math.round(Math.log2(n)),s=e<0?"⁻":"",a=String(Math.abs(
 function mkTk(sc){var lo=sc.domain()[0],hi=sc.domain()[1],r=[],v=Math.pow(2,Math.ceil(Math.log2(lo)));while(v<=hi*1.01){r.push(v);v*=2}return r}
 function mkCBtns(cid,setter){
   var el=document.getElementById(cid);
-  [["ti","TI"],["mic","MIC"],["cc50","CC50"],["hc50","HC50"],["charge","Charge"],["hydro","Hydro"],["family","Family"],["n_strains","Strains"]].forEach(function(a){
+  [["ti","TI"],["mic","MIC"],["cc50","CC50"],["hc50","HC50"],["charge","Charge"],["hydro","Hydro"],["family","Family"],["group","Group"],["n_strains","Strains"]].forEach(function(a){
     var b=document.createElement("button");b.className="bt";b.dataset.k=a[0];b.textContent=a[1];
     b.addEventListener("click",function(){setter(a[0]);rerender()});el.appendChild(b);
   });
+}
+
+/* ==== Shared strain popover builder ==== */
+var _strainPopEls=[];
+function _buildStrainPop(popEl){
+  var h='<h4>Strains for MIC geomean</h4><div class="pr"><button data-p="all">All</button><button data-p="gn">Gram\u2212</button><button data-p="gp">Gram+</button><button data-p="mdr">MDR</button><button data-p="none">None</button></div>';
+  ST.forEach(function(s,i){
+    h+='<label><input type="checkbox" data-si="'+i+'"'+(tiSI.indexOf(i)>=0?" checked":"")+'> ';
+    h+=s.m?'<span class="mdr">'+s.s+'</span>':s.s;h+='</label>';
+  });
+  popEl.innerHTML=h;
+  popEl.querySelectorAll("[data-si]").forEach(function(el){el.addEventListener("change",function(){
+    var si=+this.dataset.si;if(this.checked){if(tiSI.indexOf(si)<0)tiSI.push(si)}else{tiSI=tiSI.filter(function(x){return x!==si})}
+    syncStrainPops();rerender();
+  })});
+  popEl.querySelectorAll("[data-p]").forEach(function(el){el.addEventListener("click",function(){
+    var p=this.dataset.p;
+    if(p==="all"){tiSI=[];for(var j=0;j<20;j++)tiSI.push(j)}
+    else if(p==="gn"){tiSI=[];ST.forEach(function(s,j){if(s.g==="-")tiSI.push(j)})}
+    else if(p==="gp"){tiSI=[];ST.forEach(function(s,j){if(s.g==="+")tiSI.push(j)})}
+    else if(p==="mdr"){tiSI=[];ST.forEach(function(s,j){if(s.m)tiSI.push(j)})}
+    else{tiSI=[]}
+    syncStrainPops();rerender();
+  })});
+}
+function syncStrainPops(){
+  var lab="Strains: "+(tiSI.length===20?"All (20)":tiSI.length===0?"None":"Selected ("+tiSI.length+")");
+  _strainPopEls.forEach(function(o){o.btn.textContent=lab;_buildStrainPop(o.pop)});
+}
+function initStrainPop(btnId,popId){
+  var btn=document.getElementById(btnId),pop=document.getElementById(popId);
+  btn.addEventListener("click",function(e){e.stopPropagation();pop.classList.toggle("open")});
+  document.addEventListener("click",function(e){if(!e.target.closest("#"+popId)&&e.target!==btn)pop.classList.remove("open")});
+  _strainPopEls.push({btn:btn,pop:pop});
+  _buildStrainPop(pop);
 }
 
 /* ==== TI VIEW ==== */
@@ -480,34 +572,8 @@ var tiSI=[];for(var _ti=0;_ti<20;_ti++)tiSI.push(_ti);
   document.getElementById("ti-ya").addEventListener("change",function(){tiYA=this.value;tiZoom=null;rerender()});
   document.getElementById("ti-zr").addEventListener("click",function(){tiZoom=null;rerender()});
 
-  // Strain popover
-  var spop=document.getElementById("ti-pop"),sbtn=document.getElementById("ti-sb");
-  sbtn.addEventListener("click",function(e){e.stopPropagation();spop.classList.toggle("open")});
-  document.addEventListener("click",function(e){if(!e.target.closest("#ti-pop")&&e.target!==sbtn)spop.classList.remove("open")});
-  function bldSpop(){
-    var h='<h4>Strains for geometric mean</h4><div class="pr"><button data-p="all">All</button><button data-p="gn">Gram−</button><button data-p="gp">Gram+</button><button data-p="mdr">MDR</button><button data-p="none">None</button></div>';
-    ST.forEach(function(s,i){
-      h+='<label><input type="checkbox" data-si="'+i+'"'+(tiSI.indexOf(i)>=0?" checked":"")+'> ';
-      h+=s.m?'<span class="mdr">'+s.s+'</span>':s.s;
-      h+='</label>';
-    });
-    spop.innerHTML=h;
-    spop.querySelectorAll("[data-si]").forEach(function(el){el.addEventListener("change",function(){
-      var si=+this.dataset.si;if(this.checked){if(tiSI.indexOf(si)<0)tiSI.push(si)}else{tiSI=tiSI.filter(function(x){return x!==si})}
-      updSB();rerender();
-    })});
-    spop.querySelectorAll("[data-p]").forEach(function(el){el.addEventListener("click",function(){
-      var p=this.dataset.p;
-      if(p==="all"){tiSI=[];for(var j=0;j<20;j++)tiSI.push(j)}
-      else if(p==="gn"){tiSI=[];ST.forEach(function(s,j){if(s.g==="-")tiSI.push(j)})}
-      else if(p==="gp"){tiSI=[];ST.forEach(function(s,j){if(s.g==="+")tiSI.push(j)})}
-      else if(p==="mdr"){tiSI=[];ST.forEach(function(s,j){if(s.m)tiSI.push(j)})}
-      else{tiSI=[]}
-      bldSpop();updSB();rerender();
-    })});
-  }
-  function updSB(){sbtn.textContent="Strains: "+(tiSI.length===20?"All (20)":tiSI.length===0?"None":"Selected ("+tiSI.length+")")}
-  bldSpop();
+  // Strain popover (shared with PC view)
+  initStrainPop("ti-sb","ti-pop");
 
   function getV(p,a){
     if(a==="mic")return gm(p.mics,tiSI);
@@ -573,6 +639,7 @@ var pcZoom=null,pcCol="mic";
   document.getElementById("pc-ya").addEventListener("change",function(){yK=this.value;pcZoom=null;rerender()});
   mkCBtns("pc-cb",function(k){pcCol=k});
   document.getElementById("pc-zr").addEventListener("click",function(){pcZoom=null;rerender()});
+  initStrainPop("pc-sb","pc-pop");
 
   window.pcRender=function(){
     var data=P.filter(function(p){return p[xK]!=null&&p[yK]!=null&&passFilter(p)});
@@ -603,7 +670,7 @@ var pcZoom=null,pcCol="mic";
 function rerender(){
   syncUI();
   var active=document.querySelector(".tab.on");
-  var v=active?active.dataset.v:"ti";
+  var v=active?active.dataset.v:"hm";
   if(v==="ti")tiRender();
   else if(v==="pc")pcRender();
   else if(v==="hm")hmRender();
@@ -621,7 +688,7 @@ var hmStrainVis=[];for(var _hi=0;_hi<20;_hi++)hmStrainVis.push(_hi); // visible 
 
 (function(){
   // Sort preset buttons
-  var sorts=[["family","Family"],["name","Name"],["mic","MIC ↑"],["mic_ti","MIC ↑ TI ↓"],["strains","Strains ↓"]];
+  var sorts=[["family","Family"],["group","Group"],["name","Name"],["mic","MIC ↑"],["mic_ti","MIC ↑ TI ↓"],["strains","Strains ↓"]];
   var sEl=document.getElementById("hm-sort");
   sorts.forEach(function(s){
     var b=document.createElement("button");b.textContent=s[1];b.dataset.s=s[0];
@@ -730,6 +797,15 @@ var hmStrainVis=[];for(var _hi=0;_hi<20;_hi++)hmStrainVis.push(_hi); // visible 
         return yn-xn||penMIC(x)-penMIC(y);
       });
     }
+    else if(hmSort==="group"){
+      var GO={"de_novo":0,"inactive_to_active":1,"lps_binding":2,"dna_binding":3,"prototype":4,"control":5};
+      function go(p){
+        var gi=GO[p._grp]!=null?GO[p._grp]:9;
+        if(p.c==="prototype")return String(gi)+"_"+p.n+"_0";
+        return String(gi)+"_"+(p.p||"")+"_1_"+(p.mic||999).toFixed(3);
+      }
+      a.sort(function(x,y){return go(x).localeCompare(go(y))});
+    }
     else { // family
       function fo(p){
         if(p.c==="control")return"zzz";
@@ -791,10 +867,17 @@ var hmStrainVis=[];for(var _hi=0;_hi<20;_hi++)hmStrainVis.push(_hi); // visible 
 
     var lastGrp="";
     data.forEach(function(p,ri){
-      var grp=p.c==="de_novo"?"De novo":p.c==="analog"?p.p:p.c==="control"?"Controls":p.c==="prototype"?p.n:"";
-      if(hmSort==="family"&&hmSortCol==null&&grp!==lastGrp){
+      var grp;
+      if(hmSort==="group"){
+        grp=GRP_LABELS[p._grp]||p._grp;
+        if(p.c==="analog"||p.c==="prototype")grp+=" / "+p.p;
+      }else{
+        grp=p.c==="de_novo"?"De novo":p.c==="analog"?p.p:p.c==="control"?"Controls":p.c==="prototype"?p.n:"";
+      }
+      if((hmSort==="family"||hmSort==="group")&&hmSortCol==null&&grp!==lastGrp){
         lastGrp=grp;
-        h+='<tr><td colspan="'+(totalCols+1)+'" style="background:#f5f5f4;font-size:9px;color:#78716c;font-weight:600;padding:2px 6px;position:sticky;left:0;z-index:1">'+grp+'</td></tr>';
+        var gc=hmSort==="group"?(GRP_COLORS[p._grp]||"#78716c"):"#78716c";
+        h+='<tr><td colspan="'+(totalCols+1)+'" style="background:#f5f5f4;font-size:9px;color:'+gc+';font-weight:600;padding:2px 6px;position:sticky;left:0;z-index:1">'+grp+'</td></tr>';
       }
 
       var isPk=isPinned(p);
@@ -1042,7 +1125,7 @@ var mbCol="mic",mbZoom=null;
 })();
 
 /* ==== BINDING TAB ==== */
-var bdLpsSort="value",bdDnaSort="value";
+var bdLpsSort="family",bdDnaSort="value";
 (function(){
   var LPS_LABELS=["2 μM","8 μM","32 μM","32 μM +Ca²⁺"];
   var LPS_COL=["#3b82f6","#3b82f6","#1d4ed8","#f97316"];
@@ -1057,15 +1140,15 @@ var bdLpsSort="value",bdDnaSort="value";
     b.addEventListener("click",function(){bdLpsSort=s[0];bdRender()});
     document.getElementById("bd-lps-sort").appendChild(b);
   });
-  [["name","Name"],["value","Value ↓"]].forEach(function(s){
+  [["family","Family"],["name","Name"],["value","Value ↓"]].forEach(function(s){
     var b=document.createElement("button");b.textContent=s[1];b.dataset.s=s[0];
     b.addEventListener("click",function(){bdDnaSort=s[0];bdRender()});
     document.getElementById("bd-dna-sort").appendChild(b);
   });
 
   // Derive family ordering from data (stable sort by first appearance)
-  var _famList=[];P.forEach(function(p){if(p.lps&&p.p){var f=p.p;if(_famList.indexOf(f)<0)_famList.push(f)}});
-  P.forEach(function(p){if(p.lps&&!p.p&&_famList.indexOf(p.n)<0)_famList.push(p.n)}); // controls
+  var _famList=[];P.forEach(function(p){if((p.lps||p.dna)&&p.p){var f=p.p;if(_famList.indexOf(f)<0)_famList.push(f)}});
+  P.forEach(function(p){if((p.lps||p.dna)&&!p.p&&_famList.indexOf(p.n)<0)_famList.push(p.n)}); // controls
   var famOrd={};_famList.forEach(function(f,i){famOrd[f]=i});
 
   function sortData(data,mode,ci){
@@ -1074,25 +1157,54 @@ var bdLpsSort="value",bdDnaSort="value";
     else if(mode==="value"){a.sort(function(x,y){return(y._vals[ci]||0)-(x._vals[ci]||0)})}
     else { // family
       a.sort(function(x,y){
+        // Controls last
+        var xCtrl=x.c==="control"?1:0,yCtrl=y.c==="control"?1:0;
+        if(xCtrl!==yCtrl)return xCtrl-yCtrl;
+        // Group by family
         var fa=famOrd[x.p]!=null?famOrd[x.p]:(famOrd[x.n]!=null?famOrd[x.n]:99);
         var fb=famOrd[y.p]!=null?famOrd[y.p]:(famOrd[y.n]!=null?famOrd[y.n]:99);
         if(fa!==fb)return fa-fb;
-        return(y._vals[ci]||0)-(x._vals[ci]||0);
+        // Prototypes before analogs
+        var xProto=x.c==="prototype"?0:1,yProto=y.c==="prototype"?0:1;
+        if(xProto!==yProto)return xProto-yProto;
+        // Analogs: numeric suffix order
+        var xNum=parseInt((x.n.match(/(\d+)$/)||[0,999])[1]);
+        var yNum=parseInt((y.n.match(/(\d+)$/)||[0,999])[1]);
+        return xNum-yNum;
       });
     }
     return a;
   }
 
   // Vertical bar chart: peptides on x, value on y
-  function vBar(svgId,data,ci,color,yMax,yLabel){
+  function vBar(svgId,data,ci,color,yMax,yLabel,sortMode){
     var svg=d3.select("#"+svgId);svg.selectAll("*").remove();
     if(!data.length){svg.attr("width",0).attr("height",0);return}
+
+    // Compute family group boundaries for spacing
+    var famBreaks=[];
+    if(sortMode==="family"){
+      for(var fi=1;fi<data.length;fi++){
+        var prevFam=data[fi-1].c==="control"?"__ctrl":(data[fi-1].p||data[fi-1].n);
+        var curFam=data[fi].c==="control"?"__ctrl":(data[fi].p||data[fi].n);
+        if(curFam!==prevFam)famBreaks.push(fi);
+      }
+    }
 
     var n=data.length;
     var barW=Math.min(16,Math.max(6,Math.floor(400/n)));
     var gap=Math.max(1,Math.floor(barW*0.3));
+    var famGap=barW>8?barW:barW*1.5; // extra gap between families
     var step=barW+gap;
-    var plotW=n*step;
+
+    // Build x positions with family gaps
+    var xPos=[];var cx=0;
+    for(var xi=0;xi<n;xi++){
+      if(famBreaks.indexOf(xi)>=0)cx+=famGap;
+      xPos.push(cx);
+      cx+=step;
+    }
+    var plotW=cx-gap;
     var M={t:6,r:8,b:80,l:35};
     var plotH=160;
 
@@ -1113,16 +1225,18 @@ var bdLpsSort="value",bdDnaSort="value";
     // Bars
     data.forEach(function(p,i){
       var v=p._vals[ci];
-      var x=i*step;
+      var x=xPos[i];
       var isPk=isPinned(p);
 
       if(v!=null){
         var h=plotH-yS(Math.max(0,v));
+        var isProto=p.c==="prototype";
         var bar=g.append("rect").attr("x",x).attr("y",yS(Math.max(0,v))).attr("width",barW).attr("height",h)
-          .attr("fill",isPk?"#22c55e":color).attr("rx",1).attr("opacity",0.85).style("cursor","pointer");
+          .attr("fill",isPk?"#22c55e":isProto?"#292524":color).attr("rx",1).attr("opacity",isProto?1:0.85).style("cursor","pointer");
+        if(isProto)bar.attr("stroke","#292524").attr("stroke-width",1);
         bar.on("mouseenter",function(e){
           var txt='<b>'+p.n+'</b>';
-          for(var j=0;j<p._labels.length;j++){txt+='<br>'+p._labels[j]+': '+(p._vals[j]!=null?p._vals[j].toFixed(1):'—')}
+          for(var j=0;j<p._labels.length;j++){txt+='<br>'+p._labels[j]+': '+(p._vals[j]!=null?p._vals[j].toFixed(1):'--')}
           tip.innerHTML=txt;tip.style.display='block';tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-10)+'px';
           showDet(det,p);
         }).on("mousemove",function(e){tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-10)+'px'})
@@ -1131,12 +1245,19 @@ var bdLpsSort="value",bdDnaSort="value";
       }
 
       // X label (rotated)
+      var isProto2=p.c==="prototype";
       g.append("text").attr("x",x+barW/2).attr("y",plotH+6)
-        .attr("text-anchor","end").attr("font-size",barW>8?9:7).attr("fill",isPk?"#22c55e":"#57534e")
-        .attr("font-weight",isPk?700:400)
+        .attr("text-anchor","end").attr("font-size",barW>8?9:7).attr("fill",isPk?"#22c55e":isProto2?"#292524":"#57534e")
+        .attr("font-weight",(isPk||isProto2)?700:400)
         .attr("transform","rotate(-55,"+(x+barW/2)+","+(plotH+6)+")")
         .text(p.n).style("cursor","pointer")
         .on("click",function(){selPep(p)});
+    });
+
+    // Family separator lines and labels
+    famBreaks.forEach(function(bi){
+      var sepX=xPos[bi]-famGap/2;
+      g.append("line").attr("x1",sepX).attr("x2",sepX).attr("y1",0).attr("y2",plotH).attr("stroke","#d6d3d1").attr("stroke-dasharray","2,2");
     });
   }
 
@@ -1153,7 +1274,7 @@ var bdLpsSort="value",bdDnaSort="value";
     });
     for(var li=0;li<4;li++){
       var sorted=sortData(lpsData,bdLpsSort,li);
-      vBar("bd-lps-"+li,sorted,li,LPS_COL[li],100,"BC disp. (%)");
+      vBar("bd-lps-"+li,sorted,li,LPS_COL[li],100,"BC disp. (%)",bdLpsSort);
     }
 
     // DNA: 4 charts
@@ -1165,7 +1286,7 @@ var bdLpsSort="value",bdDnaSort="value";
     // Render in order: 12.5, 25, 50, ΔAmax (indices 1,2,3,0)
     [1,2,3,0].forEach(function(di){
       var sorted=sortData(dnaData,bdDnaSort,di);
-      vBar("bd-dna-"+di,sorted,di,DNA_COL[di],dnaMax,"ΔA");
+      vBar("bd-dna-"+di,sorted,di,DNA_COL[di],dnaMax,"ΔA",bdDnaSort);
     });
 
     showDet(det,null);
@@ -1330,7 +1451,7 @@ var ssSort="family";
 /* ==== EXPORT CSV ==== */
 document.getElementById("exportBtn").addEventListener("click",function(){
   var active=document.querySelector(".tab.on");
-  var v=active?active.dataset.v:"ti";
+  var v=active?active.dataset.v:"hm";
   var data=P.filter(function(p){return passFilter(p)});
 
   // Build column headers
@@ -1367,7 +1488,7 @@ document.getElementById("exportBtn").addEventListener("click",function(){
 /* ==== URL STATE ==== */
 function encodeState(){
   var active=document.querySelector(".tab.on");
-  var v=active?active.dataset.v:"ti";
+  var v=active?active.dataset.v:"hm";
   var parts=[v];
   // Family filter
   if(!isAll()){

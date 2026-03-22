@@ -1,0 +1,74 @@
+name: Build & Deploy Dashboard
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      DASH_PW: ${{ secrets.DASHBOARD_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Python dependencies
+        run: pip install modlamp
+
+      - name: Build dashboard
+        run: python build_dashboard.py --data-dir data --output _site/index.html
+
+      - name: Encrypt with StatiCrypt
+        if: env.DASH_PW != ''
+        run: |
+          npm install -g staticrypt
+          staticrypt _site/index.html \
+            -p "$DASH_PW" \
+            --remember 30 \
+            --short \
+            --template-title "OmegAMP Dashboard" \
+            --template-instructions "Enter the password shared by the corresponding author." \
+            --template-button "Open Dashboard" \
+            --template-placeholder "Password" \
+            --template-color-primary "#22c55e" \
+            --template-color-secondary "#292524" \
+            --template-error "Wrong password. Contact the corresponding author." \
+            --template-remember "Remember me for 30 days" \
+            -d _site_enc \
+            -c false
+          mv _site_enc/index.html _site/index.html
+          rm -rf _site_enc
+
+      - name: Add .nojekyll
+        run: touch _site/.nojekyll
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
