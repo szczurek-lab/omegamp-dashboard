@@ -22,6 +22,11 @@ Optional input files (loaded if present):
     lps_binding.csv    - LPS neutralization (BC displacement, ± Ca²⁺)
     dna_binding.csv    - DNA binding (ΔA at multiple concentrations)
 
+Help files (under --help-dir or <data-dir>/help/):
+    *.md               - Markdown files rendered as collapsible info panels.
+                         File stem becomes the key (e.g. lps-binding.md -> "lps-binding").
+                         Matched to help buttons via data-help attribute in the template.
+
 Template:
     dashboard_template.html — must contain a single __DATA__ placeholder.
 """
@@ -234,6 +239,19 @@ def _load_if_exists(path, loader):
     return loader(path) if os.path.exists(path) else {}
 
 
+def load_help(help_dir):
+    """Load all .md files from help_dir into a dict keyed by stem name."""
+    texts = {}
+    if not os.path.isdir(help_dir):
+        return texts
+    for fname in sorted(os.listdir(help_dir)):
+        if fname.endswith('.md'):
+            key = fname[:-3]  # strip .md
+            with open(os.path.join(help_dir, fname)) as f:
+                texts[key] = f.read()
+    return texts
+
+
 # ══════════════════════════════════════════════════════════════════════════
 # Build peptide list
 # ══════════════════════════════════════════════════════════════════════════
@@ -286,6 +304,8 @@ def main():
     ap.add_argument('--data-dir', default='.', help='CSV directory (default: .)')
     ap.add_argument('--template', default=None, help='Template HTML path')
     ap.add_argument('--output', '-o', default='omegamp_dashboard.html')
+    ap.add_argument('--help-dir', default=None,
+                    help='Directory with .md help files (default: <data-dir>/help)')
     args = ap.parse_args()
     dd = args.data_dir
 
@@ -305,6 +325,11 @@ def main():
     lps  = _load_if_exists(os.path.join(dd, 'lps_binding.csv'), load_lps)
     dna  = _load_if_exists(os.path.join(dd, 'dna_binding.csv'), load_dna)
 
+    help_dir = args.help_dir or os.path.join(dd, 'help')
+    help_texts = load_help(help_dir)
+    if help_texts:
+        print(f"  Loaded {len(help_texts)} help files: {', '.join(help_texts.keys())}")
+
     sizes = {'ref': len(ref), 'MIC': len(mic), 'CC50': len(cc50), 'HC50': len(hc50),
              'DiSC': len(disc), 'NPN': len(npn), 'BeStSel': len(bsl),
              'LPS': len(lps), 'DNA': len(dna)}
@@ -317,7 +342,8 @@ def main():
     print(f"  Built {len(peptides)} peptides: {dict(cats)}")
     print(f"  {n_mic} with MIC data")
 
-    payload = json.dumps({'peptides': peptides, 'strains': STRAIN_INFO},
+    payload = json.dumps({'peptides': peptides, 'strains': STRAIN_INFO,
+                          'help': help_texts},
                          separators=(',', ':'))
     print(f"  JSON: {len(payload)/1024:.1f} KB")
 

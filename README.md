@@ -67,13 +67,16 @@ The dashboard is AES-encrypted with [StatiCrypt](https://github.com/robinmoisson
 ## Features
 
 - **Experiment group filters** -- De novo, Inactive-to-active, LPS-binding, DNA-binding with All/None buttons
-- **Shared strain selector** -- choose strains for MIC geometric mean across Safety and Physicochemical views
+- **Shared strain selector** -- choose strains for MIC summary across Safety and Physicochemical views
+- **MIC aggregation toggle** -- switch between geometric mean, MIC50 (median), and MIC90 (90th percentile) globally across all views
+- **Sub-1 μM MIC support** -- color scales and display extend to 0.125 μM for high-potency measurements
+- **Contextual help panels** -- collapsible "?" buttons next to assay sections render markdown descriptions from `help/*.md` files
 - Shared family/category filters across all tabs
 - Search by peptide name
 - Pin peptides -- persists across tab switches
 - Brush-to-zoom on scatter plots
 - Click column headers to sort in heatmap
-- Export CSV -- download currently filtered data
+- Export CSV -- download currently filtered data with selected MIC aggregation
 - URL state -- shareable links that restore exact view
 
 ## Input data
@@ -81,7 +84,7 @@ The dashboard is AES-encrypted with [StatiCrypt](https://github.com/robinmoisson
 | File | Rows | Required | Description |
 |------|------|----------|-------------|
 | `omegamp_reference_table.csv` | 217 | yes | Peptide metadata |
-| `mic.csv` | 217 | yes | MIC across 20 bacterial strains |
+| `mic.csv` | 217 | yes | MIC across 20 bacterial strains (supports sub-1 μM values) |
 | `cc50.csv` | 215 | yes | Cytotoxicity CC50 |
 | `hc50.csv` | 215 | yes | Hemolysis HC50 |
 | `disc.csv` | 196 | | DiSC3(5) membrane depolarization |
@@ -89,8 +92,23 @@ The dashboard is AES-encrypted with [StatiCrypt](https://github.com/robinmoisson
 | `bestsel.csv` | 190 | | BeStSel secondary structure |
 | `lps_binding.csv` | 577 | | LPS binding (BC displacement) |
 | `dna_binding.csv` | 111 | | DNA binding (deltaA) |
+| `help/*.md` | -- | | Markdown help files (see below) |
 
 Optional files are loaded if present; tabs with missing data render empty.
+
+### Help files
+
+Place `.md` files in a `help/` subdirectory (or pass `--help-dir`). The filename stem must match the `data-help` attribute of a help button in the template:
+
+| File | Section |
+|------|---------|
+| `lps-binding.md` | LPS neutralization (Target Binding tab) |
+| `dna-binding.md` | DNA binding (Target Binding tab) |
+| `npn.md` | NPN assay (Membrane Activity tab) |
+| `disc.md` | DiSC3(5) assay (Membrane Activity tab) |
+| `bestsel.md` | Secondary structure (Structure tab) |
+
+If a file is missing, its "?" button is hidden automatically.
 
 ## Strain panel
 
