@@ -6,3 +6,6 @@ __pycache__/
 docs/index_unprotected.html
 .staticrypt.json
 data/
+.idea/
+data.zip
+notebooks/.ipynb_checkpoints/
