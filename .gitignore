@@ -5,9 +5,17 @@ __pycache__/
 .venv/
 docs/index_unprotected.html
 .staticrypt.json
-data/
 .idea/
 data.zip
-notebooks/.ipynb_checkpoints/
+
+# Raw experimental data and rendered figures -- not tracked until publication.
+# See README for how to request access.
+data/
 figures/
-notebooks/
+
+# Legacy / scratch notebooks
+notebooks/OmegAMP_figures.ipynb
+notebooks/Untitled.ipynb
+
+# Notebook checkpoints only -- notebooks themselves are tracked
+notebooks/.ipynb_checkpoints/
