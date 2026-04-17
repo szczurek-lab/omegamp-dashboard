@@ -66,7 +66,90 @@ CC50 and HC50 values above 128 uM are right-censored as >128, following standard
 | MRSA | Methicillin-resistant | *S. aureus* | BAA-1556 |
 | VRE | Vancomycin-resistant | *E. faecalis*, *E. faecium* | 700802, 700221 |
 
-## Building locally
+## Reproducing the manuscript figures
+
+This repository contains the figure notebooks (`notebooks/`) and the
+scripts that regenerated the datasets they visualise
+(`scripts/reproduce/`).  The generative model itself lives in a
+separate repository (`generative-modelling-amp`).
+
+### Layout
+
+| Path | Contents |
+|------|----------|
+| `notebooks/figure2_conditioning.ipynb`, `notebooks/figureS1_conditioning.ipynb` | Property conditioning figures |
+| `notebooks/figure3_analog.ipynb`, `notebooks/figureS2_analog.ipynb` | Analog generation figures |
+| `notebooks/figure4_denovo.ipynb`, `notebooks/figure5_analog.ipynb`, `notebooks/figure6_mechanism.ipynb`, `notebooks/figureS3_analog-wet.ipynb`, `notebooks/figureS4_mechanism.ipynb` | Wet-lab figures |
+| `scripts/reproduce/` | Shell scripts that regenerate the model outputs read by Figure 2 and Figure 3 notebooks |
+| `scripts/original/` | Original, unedited generation scripts used during development (kept for provenance) |
+| `amp_similarity/` | AMP-specific pairwise similarity scoring (used by Figure 3 Panel B) |
+
+### Getting the data and rendered figures
+
+Several components are not tracked in this public repository until
+manuscript publication:
+
+- **Rendered figures** -- PNG/PDF/SVG outputs of each figure notebook.
+  Notebooks save to a local `figures/` directory when run.
+- **Model-generation outputs for Figures 2 and 3** -- conditioning
+  grids, analog parameter sweeps, benchmark FASTAs, APEX predictions.
+  Expected at `data/figure2/` and `data/figure3/`.
+- **Wet-lab assay CSVs for Figures 4--6** -- MIC, CC50, HC50, NPN,
+  DiSC3(5), BeStSel, LPS binding, DNA binding, reference table.
+  Expected at `data/`.
+
+These will be made publicly available upon publication of the
+manuscript.  In the meantime, access can be requested from the
+corresponding authors.
+
+Alternatively, the Figure 2 and 3 data can be regenerated from scratch
+with a GPU, the `generative-modelling-amp` repo, and APEX -- see
+"Regenerate datasets" below.
+
+### Prerequisites for regeneration
+
+| Dependency | What it is | Where to get it |
+|---|---|---|
+| `generative-modelling-amp` | OmegAMP model code + checkpoint | Internal repo |
+| APEX | MIC prediction tool | Internal (`/raid/battleamp_root/…`) |
+
+### 1. Set environment variables
+
+```bash
+export OMEGAMP_DIR=/path/to/generative-modelling-amp
+export APEX_DIR=/path/to/apex            # only needed for APEX prediction steps
+```
+
+The checkpoint is expected at `${OMEGAMP_DIR}/data/generative_model.ckpt`.
+Override with `export CHECKPOINT=/other/path/model.ckpt` if needed.
+
+### 2. Run figure notebooks
+
+Open any notebook in `notebooks/` with JupyterLab.  The notebooks read
+pre-generated data from `data/` (see "Getting the data and rendered
+figures" above).
+
+### 3. Regenerate datasets (optional)
+
+Each script in `scripts/reproduce/` regenerates one dataset from scratch.
+
+```bash
+# Figure 2 -- property conditioning
+bash scripts/reproduce/gen_figure2_conditioning.sh   # ~2-4 h on one GPU
+bash scripts/reproduce/gen_figure2_apex.sh           # APEX predictions
+
+# Figure 3 -- analog parameter sweep & flavor comparison
+bash scripts/reproduce/gen_figure3_sweep.sh
+bash scripts/reproduce/gen_figure3_flavors.sh
+
+# Wet-lab candidate generation
+bash scripts/reproduce/gen_wetlab.sh
+bash scripts/reproduce/gen_wetlab_motifs.sh          # template/motif runs
+```
+
+---
+
+## Building the dashboard locally
 
 Requires Python 3.8+ with [modlAMP](https://modlamp.org/).
 
