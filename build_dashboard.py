@@ -189,6 +189,35 @@ def load_membrane_assay(path):
     return data
 
 
+def load_membrane_assay_fc(path):
+    """Load fixed-concentration DiSC3(5) or NPN: {name: [MaxRel, AUC, conc]}."""
+    data = {}
+    with open(path) as f:
+        for row in csv.DictReader(f):
+            try:
+                conc = float(row['concentration_uM']) if row.get('concentration_uM') else None
+                data[_name(row)] = [float(row['MaxRel']), float(row['AUC']), conc]
+            except (ValueError, KeyError):
+                pass
+    return data
+
+
+def load_proteolysis(path):
+    """Load proteolytic degradation time-course: {name: [[t,mean,r1,r2], ...]}."""
+    raw = defaultdict(list)
+    with open(path) as f:
+        for row in csv.DictReader(f):
+            try:
+                t = float(row['time_min'])
+                mean = float(row['mean']) if row.get('mean') else None
+                r1 = float(row['rep1']) if row.get('rep1') else None
+                r2 = float(row['rep2']) if row.get('rep2') else None
+                raw[_name(row)].append([t, mean, r1, r2])
+            except (ValueError, KeyError):
+                pass
+    return dict(raw)
+
+
 def load_bestsel(path):
     """Returns {name: [[fH, fBa, fBp, fT, fO] × 4 solvents]}."""
     fracs = ['fH', 'f_beta_anti', 'f_beta_par', 'fturn', 'fothers']
@@ -257,7 +286,11 @@ def load_help(help_dir):
 # ══════════════════════════════════════════════════════════════════════════
 
 def build_peptides(ref, mic_data, cc50_data, hc50_data,
-                   disc_data, npn_data, bestsel_data, lps_data, dna_data):
+                   disc_data, npn_data, bestsel_data, lps_data, dna_data,
+                   disc_fc_data=None, npn_fc_data=None, proteo_data=None):
+    disc_fc_data = disc_fc_data or {}
+    npn_fc_data = npn_fc_data or {}
+    proteo_data = proteo_data or {}
     strain_mdr = [s['m'] for s in STRAIN_INFO]
     peptides = []
 
@@ -284,8 +317,10 @@ def build_peptides(ref, mic_data, cc50_data, hc50_data,
             'hc': round(hc, 3) if hc else None,
             'ns': ns, 'nm': nm,
             'disc': disc_data.get(sn), 'npn': npn_data.get(sn),
+            'dfc': disc_fc_data.get(sn), 'nfc': npn_fc_data.get(sn),
             'bsl': bestsel_data.get(sn), 'lps': lps_data.get(sn),
             'dna': dna_data.get(sn),
+            'pro': proteo_data.get(sn),
         }
         pt.update(compute_descriptors(seq))
         pt['ti'] = round(cc / gmean, 2) if (cc and gmean) else None
@@ -321,9 +356,12 @@ def main():
     hc50 = load_single_col(os.path.join(dd, 'hc50.csv'), 'HC50')
     disc = _load_if_exists(os.path.join(dd, 'disc.csv'), load_membrane_assay)
     npn  = _load_if_exists(os.path.join(dd, 'npn.csv'), load_membrane_assay)
+    dfc  = _load_if_exists(os.path.join(dd, 'disc_fc.csv'), load_membrane_assay_fc)
+    nfc  = _load_if_exists(os.path.join(dd, 'npn_fc.csv'), load_membrane_assay_fc)
     bsl  = _load_if_exists(os.path.join(dd, 'bestsel.csv'), load_bestsel)
     lps  = _load_if_exists(os.path.join(dd, 'lps_binding.csv'), load_lps)
     dna  = _load_if_exists(os.path.join(dd, 'dna_binding.csv'), load_dna)
+    pro  = _load_if_exists(os.path.join(dd, 'proteolysis.csv'), load_proteolysis)
 
     help_dir = args.help_dir or os.path.join(dd, 'help')
     help_texts = load_help(help_dir)
@@ -331,12 +369,13 @@ def main():
         print(f"  Loaded {len(help_texts)} help files: {', '.join(help_texts.keys())}")
 
     sizes = {'ref': len(ref), 'MIC': len(mic), 'CC50': len(cc50), 'HC50': len(hc50),
-             'DiSC': len(disc), 'NPN': len(npn), 'BeStSel': len(bsl),
-             'LPS': len(lps), 'DNA': len(dna)}
+             'DiSC': len(disc), 'NPN': len(npn), 'DiSC-FC': len(dfc), 'NPN-FC': len(nfc),
+             'BeStSel': len(bsl), 'LPS': len(lps), 'DNA': len(dna), 'Proteo': len(pro)}
     print(f"  {' · '.join(f'{v} {k}' for k, v in sizes.items())}")
 
     print("  Computing physicochemical descriptors (modlAMP)...")
-    peptides = build_peptides(ref, mic, cc50, hc50, disc, npn, bsl, lps, dna)
+    peptides = build_peptides(ref, mic, cc50, hc50, disc, npn, bsl, lps, dna,
+                              dfc, nfc, pro)
     cats = Counter(p['c'] for p in peptides)
     n_mic = sum(1 for p in peptides if any(v is not None for v in p['mics']))
     print(f"  Built {len(peptides)} peptides: {dict(cats)}")

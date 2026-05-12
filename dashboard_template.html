@@ -145,6 +145,7 @@ body{font-family:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;background:#f
 <button class="tab" data-v="bd">Target Binding</button>
 <button class="tab" data-v="ss">Structure</button>
 <button class="tab" data-v="ti">Safety</button>
+<button class="tab" data-v="mur">Murine Model</button>
 <button class="tab cmp-tab" data-v="leads" id="leads-tab">Compare <span class="cmp-badge" id="leads-badge">0</span></button>
 </div>
 <div class="srch">
@@ -247,22 +248,38 @@ body{font-family:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;background:#f
 </select>
 <button id="mb-zr" class="bt rs" style="display:none">Reset zoom</button></div>
 <div class="fbar" id="mb-fbar"></div>
+<div style="font-size:11px;font-weight:600;color:#78716c;margin-bottom:2px;letter-spacing:0.3px">Measured at each peptide's MIC against <em>A. baumannii</em> ATCC 19606</div>
 <div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
 <div style="display:flex;gap:8px;flex:1;min-width:0" id="mb-grid">
 <div class="mb-plot" data-plot="npn">
-<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">NPN — Outer membrane permeabilization<button class="help-btn" data-help="npn"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7v4M8 5.5v-.01"/></svg>About</button><button class="expand-btn" data-expand="npn" title="Expand">&#x26F6;</button></div>
+<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">NPN &mdash; Outer membrane permeabilization<button class="help-btn" data-help="npn"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7v4M8 5.5v-.01"/></svg>About</button><button class="expand-btn" data-expand="npn" title="Expand">&#x26F6;</button></div>
 <svg id="mb-npn" width="100%" viewBox="0 0 340 300" preserveAspectRatio="xMidYMid meet" style="background:#fff;border:1px solid #e7e5e4;border-radius:4px;user-select:none;display:block"></svg>
 </div>
 <div class="mb-plot" data-plot="disc">
-<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">DiSC3(5) — Membrane depolarization<button class="help-btn" data-help="disc"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7v4M8 5.5v-.01"/></svg>About</button><button class="expand-btn" data-expand="disc" title="Expand">&#x26F6;</button></div>
+<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">DiSC3(5) &mdash; Membrane depolarization<button class="help-btn" data-help="disc"><svg viewBox="0 0 16 16" fill="currentColor"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 7v4M8 5.5v-.01"/></svg>About</button><button class="expand-btn" data-expand="disc" title="Expand">&#x26F6;</button></div>
 <svg id="mb-disc" width="100%" viewBox="0 0 340 300" preserveAspectRatio="xMidYMid meet" style="background:#fff;border:1px solid #e7e5e4;border-radius:4px;user-select:none;display:block"></svg>
 </div>
 <div class="mb-plot" data-plot="xplot">
-<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">NPN vs DiSC MaxRel — Mechanistic profile<button class="expand-btn" data-expand="xplot" title="Expand">&#x26F6;</button></div>
+<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">NPN vs DiSC MaxRel &mdash; Mechanistic profile<button class="expand-btn" data-expand="xplot" title="Expand">&#x26F6;</button></div>
 <svg id="mb-xplot" width="100%" viewBox="0 0 340 300" preserveAspectRatio="xMidYMid meet" style="background:#fff;border:1px solid #e7e5e4;border-radius:4px;user-select:none;display:block"></svg>
 </div>
 </div>
 <div id="mb-side" style="width:280px;flex-shrink:0;display:none"></div>
+</div>
+<div style="font-size:11px;font-weight:600;color:#78716c;margin:10px 0 2px;letter-spacing:0.3px" id="mb-fc-label">Fixed concentration (per-family, see tooltip for conc.)</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap" id="mb-fc-row">
+<div class="mb-plot" data-plot="nfc">
+<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">NPN &mdash; Outer membrane permeabilization<button class="expand-btn" data-expand="nfc" title="Expand">&#x26F6;</button></div>
+<svg id="mb-nfc" width="100%" viewBox="0 0 340 300" preserveAspectRatio="xMidYMid meet" style="background:#fff;border:1px solid #e7e5e4;border-radius:4px;user-select:none;display:block"></svg>
+</div>
+<div class="mb-plot" data-plot="dfc">
+<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">DiSC3(5) &mdash; Membrane depolarization<button class="expand-btn" data-expand="dfc" title="Expand">&#x26F6;</button></div>
+<svg id="mb-dfc" width="100%" viewBox="0 0 340 300" preserveAspectRatio="xMidYMid meet" style="background:#fff;border:1px solid #e7e5e4;border-radius:4px;user-select:none;display:block"></svg>
+</div>
+<div class="mb-plot" data-plot="xpfc">
+<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">NPN vs DiSC MaxRel &mdash; Mechanistic profile<button class="expand-btn" data-expand="xpfc" title="Expand">&#x26F6;</button></div>
+<svg id="mb-xpfc" width="100%" viewBox="0 0 340 300" preserveAspectRatio="xMidYMid meet" style="background:#fff;border:1px solid #e7e5e4;border-radius:4px;user-select:none;display:block"></svg>
+</div>
 </div>
 <div id="mb-bottom" style="display:flex;gap:12px;margin-top:6px;align-items:flex-start">
 <div class="cd" id="mb-dt" style="min-width:300px;max-width:380px;flex:1"><em style="color:#a8a29e">Hover or click to select</em></div>
@@ -318,6 +335,18 @@ body{font-family:'IBM Plex Sans','Helvetica Neue',Arial,sans-serif;background:#f
 </div>
 </div>
 <div class="ft" id="ss-ft"></div>
+</div>
+
+<div class="vw" id="v-mur">
+<div style="font-size:15px;font-weight:700;color:#292524;margin-bottom:8px">Murine Model Candidates</div>
+<div style="display:flex;gap:12px;align-items:flex-start;flex-wrap:wrap">
+<div style="flex:1;min-width:360px;max-width:520px">
+<div style="font-size:12px;font-weight:600;color:#57534e;margin-bottom:3px">Proteolytic stability: % remaining peptide over time</div>
+<svg id="mur-proteo" width="100%" viewBox="0 0 480 320" preserveAspectRatio="xMidYMid meet" style="background:#fff;border:1px solid #e7e5e4;border-radius:4px;user-select:none;display:block"></svg>
+</div>
+<div class="cd" id="mur-dt" style="width:260px;flex-shrink:0"><em style="color:#a8a29e">Select a peptide to see details</em></div>
+</div>
+<div class="ft" id="mur-ft"></div>
 </div>
 
 <div class="vw" id="v-leads">
@@ -460,6 +489,7 @@ function famCF(p){return p.c==="de_novo"?"#78716c":p.c==="control"?"#292524":(FC
 function grpCF(p){return GRP_COLORS[p._grp]||"#6b7280"}
 function qC(p){return p.q==null?"#d4d4d4":d3.interpolatePlasma(Math.max(0,Math.min(1,(p.q+2)/14)))}
 function hC(p){return p.h==null?"#d4d4d4":d3.interpolateRdBu(1-Math.max(0,Math.min(1,(p.h+1)/2)))}
+function abMicC(p){var v=p.mics?p.mics[0]:null;return v==null?"#d4d4d4":d3.interpolateRdBu(micT(v))}
 var CL={
   mic:{fn:micC,l:"MIC geomean",g:function(t){return d3.interpolateRdBu(t)},tk:[{p:0,l:"0.1"},{p:2/12,l:"0.5"},{p:3/12,l:"1"},{p:5/12,l:"4"},{p:.5,l:"8"},{p:2/3,l:"16"},{p:5/6,l:"32"},{p:1,l:"64"}]},
   ti:{fn:tiC,l:"SW (CC50/MIC)",g:function(t){return d3.interpolateRdYlGn(t)},tk:[{p:0,l:"≤1"},{p:.2,l:"2"},{p:.55,l:"10"},{p:.85,l:"100"},{p:1,l:"≥512"}]},
@@ -469,7 +499,8 @@ var CL={
   group:{fn:grpCF,l:"Experiment group"},
   n_strains:{fn:nsC,l:"Active strains (/20)",g:function(t){return d3.interpolateYlGnBu(t)},tk:[{p:0,l:"0"},{p:.25,l:"5"},{p:.5,l:"10"},{p:.75,l:"15"},{p:1,l:"20"}]},
   charge:{fn:qC,l:"Net charge (pH 7.4)",g:function(t){return d3.interpolatePlasma(t)},tk:[{p:0,l:"−2"},{p:2/14,l:"0"},{p:5/14,l:"+3"},{p:8/14,l:"+6"},{p:11/14,l:"+9"},{p:1,l:"+12"}]},
-  hydro:{fn:hC,l:"Hydrophobicity (Eisenberg)",g:function(t){return d3.interpolateRdBu(1-t)},tk:[{p:0,l:"−1.0"},{p:.25,l:"−0.5"},{p:.5,l:"0"},{p:.75,l:"+0.5"},{p:1,l:"+1.0"}]}
+  hydro:{fn:hC,l:"Hydrophobicity (Eisenberg)",g:function(t){return d3.interpolateRdBu(1-t)},tk:[{p:0,l:"−1.0"},{p:.25,l:"−0.5"},{p:.5,l:"0"},{p:.75,l:"+0.5"},{p:1,l:"+1.0"}]},
+  mic_ab:{fn:abMicC,l:"MIC Ab 19606 (μM)",g:function(t){return d3.interpolateRdBu(t)},tk:[{p:0,l:"0.1"},{p:2/12,l:"0.5"},{p:3/12,l:"1"},{p:5/12,l:"4"},{p:.5,l:"8"},{p:2/3,l:"16"},{p:5/6,l:"32"},{p:1,l:"64"}]}
 };
 
 /* ---- Shared filter state ---- */
@@ -616,6 +647,12 @@ function dHTML(p,isPk){
   (p.disc||p.npn?'<div class="g2 sp">'+
     (p.npn?'<span class="lb">NPN MaxRel</span><span>'+p.npn[0].toFixed(1)+'%</span><span class="lb">NPN AUC</span><span>'+Math.round(p.npn[1])+'</span>':'')+
     (p.disc?'<span class="lb">DiSC MaxRel</span><span>'+p.disc[0].toFixed(1)+'%</span><span class="lb">DiSC AUC</span><span>'+Math.round(p.disc[1])+'</span>':'')+
+    (p.mics&&p.mics[0]!=null?'<span class="lb">Tested at</span><span>'+p.mics[0]+' \u03bcM (Ab 19606 MIC)</span>':'')+
+    '</div>':'')+
+  (p.nfc||p.dfc?'<div class="g2 sp" style="border-top:1px dashed #e7e5e4;padding-top:4px">'+
+    '<span class="lb" style="grid-column:1/-1;font-weight:600;font-size:10px;color:#78716c">Fixed-concentration MoA</span>'+
+    (p.nfc?'<span class="lb">NPN MaxRel</span><span>'+p.nfc[0].toFixed(1)+'%</span><span class="lb">NPN AUC</span><span>'+Math.round(p.nfc[1])+'</span>'+(p.nfc[2]!=null?'<span class="lb">Tested at</span><span>'+p.nfc[2]+' \u03bcM</span>':''):'')+
+    (p.dfc?'<span class="lb">DiSC MaxRel</span><span>'+p.dfc[0].toFixed(1)+'%</span><span class="lb">DiSC AUC</span><span>'+Math.round(p.dfc[1])+'</span>'+(p.dfc[2]!=null&&!p.nfc?'<span class="lb">Tested at</span><span>'+p.dfc[2]+' \u03bcM</span>':''):'')+
     '</div>':'')+
   (p.bsl?'<div class="sp" style="font-size:10px"><div style="font-weight:600;margin-bottom:3px">Secondary structure</div>'+
     (function(){
@@ -644,6 +681,11 @@ function dHTML(p,isPk){
     '<span class="lb">12.5 μM</span><span>'+p.dna[1].toFixed(1)+'</span>'+
     '<span class="lb">25 μM</span><span>'+p.dna[2].toFixed(1)+'</span>'+
     '<span class="lb">50 μM</span><span>'+p.dna[3].toFixed(1)+'</span>'+
+    '</div></div>':'')+
+  (p.pro?'<div class="sp" style="font-size:10px"><div style="font-weight:600;margin-bottom:3px">Proteolytic stability</div>'+
+    '<div class="g2" style="gap:1px 6px">'+
+    '<span class="lb">% at 30 min</span><span>'+p.pro[1][1].toFixed(0)+'%</span>'+
+    '<span class="lb">% at 360 min</span><span style="font-weight:600">'+p.pro[p.pro.length-1][1].toFixed(0)+'%</span>'+
     '</div></div>':'');
 }
 function showDet(el,hover){var p=pinned||hover;var sc=selCount();var isPk=p!=null&&selSet[p.n];el.innerHTML=dHTML(p,isPk)+(sc>1&&isPk?'<div style="margin-top:6px;font-size:10px;color:#78716c">'+sc+' selected <span class="up" onclick="doUnpin()" style="margin-left:4px">Clear all</span></div>':'');el.classList.toggle("pk",isPk)}
@@ -724,7 +766,7 @@ function sup(n){var e=Math.round(Math.log2(n)),s=e<0?"⁻":"",a=String(Math.abs(
 function mkTk(sc){var lo=sc.domain()[0],hi=sc.domain()[1],r=[],v=Math.pow(2,Math.ceil(Math.log2(lo)));while(v<=hi*1.01){r.push(v);v*=2}return r}
 function mkCBtns(cid,setter){
   var el=document.getElementById(cid);
-  [["ti","SW"],["mic","MIC"],["cc50","CC50"],["hc50","HC50"],["charge","Charge"],["hydro","Hydro"],["family","Family"],["group","Group"],["n_strains","Strains"]].forEach(function(a){
+  [["ti","SW"],["mic","MIC"],["mic_ab","Ab MIC"],["cc50","CC50"],["hc50","HC50"],["charge","Charge"],["hydro","Hydro"],["family","Family"],["group","Group"],["n_strains","Strains"]].forEach(function(a){
     var b=document.createElement("button");b.className="bt";b.dataset.k=a[0];b.textContent=a[1];
     b.addEventListener("click",function(){setter(a[0]);rerender()});el.appendChild(b);
   });
@@ -909,6 +951,7 @@ function rerender(){
   else if(v==="mb")mbRender();
   else if(v==="bd")bdRender();
   else if(v==="ss")ssRender();
+  else if(v==="mur")murRender();
   else if(v==="leads")leadsRender();
 }
 
@@ -1398,12 +1441,32 @@ var mbCol="mic",mbZoom=null;
   var npnSVG=setupSVG("mb-npn");
   var discSVG=setupSVG("mb-disc");
   var xpSVG=setupSVG("mb-xplot");
-  var curNpnXS,curNpnYS,curDiscXS,curDiscYS,curXpXS,curXpYS;
+
+  // Fixed-concentration plots
+  var dfcVals=[],nfcVals=[];
+  P.forEach(function(p){if(p.dfc)dfcVals.push(p.dfc);if(p.nfc)nfcVals.push(p.nfc)});
+  var dfcMedX=med(dfcVals.map(function(d){return d[0]}));
+  var dfcMedY=med(dfcVals.map(function(d){return d[1]}));
+  var nfcMedX=med(nfcVals.map(function(d){return d[0]}));
+  var nfcMedY=med(nfcVals.map(function(d){return d[1]}));
+  var nfcSVG=setupSVG("mb-nfc");
+  var dfcSVG=setupSVG("mb-dfc");
+  var xpfcSVG=setupSVG("mb-xpfc");
+  var hasFC=nfcVals.length>0||dfcVals.length>0;
+  document.getElementById("mb-fc-row").style.display=hasFC?"flex":"none";
+  document.getElementById("mb-fc-label").style.display=hasFC?"block":"none";
+
+  var curNpnXS,curNpnYS,curDiscXS,curDiscYS,curXpXS,curXpYS,curNfcXS,curNfcYS,curDfcXS,curDfcYS,curXpfcXS,curXpfcYS;
 
   // Add brush to all three
   mkBrush(document.getElementById("mb-npn"),pW,pH,Mg.l,Mg.t,function(x0,x1,y0,y1){mbZoom={type:"npn",x:[curNpnXS.invert(x0),curNpnXS.invert(x1)],y:[curNpnYS.invert(y1),curNpnYS.invert(y0)]};rerender()});
   mkBrush(document.getElementById("mb-disc"),pW,pH,Mg.l,Mg.t,function(x0,x1,y0,y1){mbZoom={type:"disc",x:[curDiscXS.invert(x0),curDiscXS.invert(x1)],y:[curDiscYS.invert(y1),curDiscYS.invert(y0)]};rerender()});
   mkBrush(document.getElementById("mb-xplot"),pW,pH,Mg.l,Mg.t,function(x0,x1,y0,y1){mbZoom={type:"xplot",x:[curXpXS.invert(x0),curXpXS.invert(x1)],y:[curXpYS.invert(y1),curXpYS.invert(y0)]};rerender()});
+  if(hasFC){
+    mkBrush(document.getElementById("mb-nfc"),pW,pH,Mg.l,Mg.t,function(x0,x1,y0,y1){mbZoom={type:"nfc",x:[curNfcXS.invert(x0),curNfcXS.invert(x1)],y:[curNfcYS.invert(y1),curNfcYS.invert(y0)]};rerender()});
+    mkBrush(document.getElementById("mb-dfc"),pW,pH,Mg.l,Mg.t,function(x0,x1,y0,y1){mbZoom={type:"dfc",x:[curDfcXS.invert(x0),curDfcXS.invert(x1)],y:[curDfcYS.invert(y1),curDfcYS.invert(y0)]};rerender()});
+    mkBrush(document.getElementById("mb-xpfc"),pW,pH,Mg.l,Mg.t,function(x0,x1,y0,y1){mbZoom={type:"xpfc",x:[curXpfcXS.invert(x0),curXpfcXS.invert(x1)],y:[curXpfcYS.invert(y1),curXpfcYS.invert(y0)]};rerender()});
+  }
 
   function renderPlot(setup,data,key,medX,medY,xLabel,yLabel,zoom){
     var ly=setup.layers,cFn=CL[mbCol].fn,det=document.getElementById("mb-dt");
@@ -1419,7 +1482,7 @@ var mbCol="mic",mbZoom=null;
     }
     var xS=d3.scaleLinear().domain(dom.x).range([0,pW]);
     var yS=d3.scaleLinear().domain(dom.y).range([pH,0]);
-    if(key==="npn"){curNpnXS=xS;curNpnYS=yS}else{curDiscXS=xS;curDiscYS=yS}
+    if(key==="npn"){curNpnXS=xS;curNpnYS=yS}else if(key==="disc"){curDiscXS=xS;curDiscYS=yS}else if(key==="nfc"){curNfcXS=xS;curNfcYS=yS}else if(key==="dfc"){curDfcXS=xS;curDfcYS=yS}else if(key==="xpfc"){curXpfcXS=xS;curXpfcYS=yS}
     var xTk=xS.ticks(6),yTk=yS.ticks(6);
 
     // Clear
@@ -1521,13 +1584,141 @@ var mbCol="mic",mbZoom=null;
       Object.values(selSet).forEach(function(sp){if(sp===pinned||!sp.npn||!sp.disc)return;ly.hl.append("circle").attr("cx",xS(sp.npn[0])).attr("cy",yS(sp.disc[0])).attr("r",11).attr("fill","none").attr("stroke","#22c55e").attr("stroke-width",1.5).attr("stroke-dasharray","2,2")})
     })();
 
+    // Fixed-concentration NPN/DiSC plots
+    if(hasFC){
+      var nfcZoom=(mbZoom&&mbZoom.type==="nfc")?mbZoom:null;
+      var dfcZoom=(mbZoom&&mbZoom.type==="dfc")?mbZoom:null;
+      renderPlot(nfcSVG,P,"nfc",nfcMedX,nfcMedY,"MaxRel (% of baseline)","AUC (integrated response)",nfcZoom);
+      renderPlot(dfcSVG,P,"dfc",dfcMedX,dfcMedY,"MaxRel (% of baseline)","AUC (integrated response)",dfcZoom);
+    }
+
+    // Fixed-concentration NPN vs DiSC cross-plot
+    if(hasFC){
+    (function(){
+      var ly=xpfcSVG.layers,cFn=CL[mbCol].fn;
+      var xpData=P.filter(function(p){return p.nfc!=null&&p.dfc!=null&&passFilter(p)});
+      var xpZoom=(mbZoom&&mbZoom.type==="xpfc")?mbZoom:null;
+      var dom=xpZoom;
+      if(!dom){
+        var xs=xpData.map(function(p){return p.nfc[0]}),ys=xpData.map(function(p){return p.dfc[0]});
+        if(!xs.length){dom={x:[0,120],y:[0,120]}}
+        else{var xp2=(d3.max(xs)-d3.min(xs))*0.08||5,yp2=(d3.max(ys)-d3.min(ys))*0.08||5;
+          dom={x:[Math.max(0,d3.min(xs)-xp2),d3.max(xs)+xp2],y:[Math.max(0,d3.min(ys)-yp2),d3.max(ys)+yp2]}}
+      }
+      var xS=d3.scaleLinear().domain(dom.x).range([0,pW]);
+      var yS=d3.scaleLinear().domain(dom.y).range([pH,0]);
+      curXpfcXS=xS;curXpfcYS=yS;
+      var xTk=xS.ticks(6),yTk=yS.ticks(6);
+      Object.values(ly).forEach(function(l){l.selectAll("*").remove()});
+      var qx=xS(nfcMedX),qy=yS(dfcMedX);
+      ly.quad.append("line").attr("x1",qx).attr("x2",qx).attr("y1",0).attr("y2",pH).attr("stroke","#a8a29e").attr("stroke-width",1).attr("stroke-dasharray","6,4");
+      ly.quad.append("line").attr("x1",0).attr("x2",pW).attr("y1",qy).attr("y2",qy).attr("stroke","#a8a29e").attr("stroke-width",1).attr("stroke-dasharray","6,4");
+      var lfs=9,lfc="#a8a29e";
+      if(qx>30&&qx<pW-30&&qy>15&&qy<pH-15){
+        ly.labels.append("text").attr("x",qx/2).attr("y",qy+(pH-qy)/2+5).attr("text-anchor","middle").attr("font-size",lfs).attr("fill",lfc).attr("font-style","italic").text("NPN-low / DiSC-low");
+        ly.labels.append("text").attr("x",qx+(pW-qx)/2).attr("y",qy+(pH-qy)/2+5).attr("text-anchor","middle").attr("font-size",lfs).attr("fill",lfc).attr("font-style","italic").text("NPN-dominant");
+        ly.labels.append("text").attr("x",qx/2).attr("y",qy/2+5).attr("text-anchor","middle").attr("font-size",lfs).attr("fill",lfc).attr("font-style","italic").text("DiSC-dominant");
+        ly.labels.append("text").attr("x",qx+(pW-qx)/2).attr("y",qy/2+5).attr("text-anchor","middle").attr("font-size",lfs).attr("fill","#16a34a").attr("font-style","italic").text("Both strong");
+      }
+      xTk.forEach(function(t){ly.grid.append("line").attr("x1",xS(t)).attr("x2",xS(t)).attr("y2",pH).attr("stroke","#f5f5f4")});
+      yTk.forEach(function(t){ly.grid.append("line").attr("x2",pW).attr("y1",yS(t)).attr("y2",yS(t)).attr("stroke","#f5f5f4")});
+      ly.ax.append("line").attr("x2",pW).attr("y1",pH).attr("y2",pH).attr("stroke","#78716c");
+      ly.ax.append("line").attr("y2",pH).attr("stroke","#78716c");
+      xTk.forEach(function(t){ly.ax.append("line").attr("x1",xS(t)).attr("x2",xS(t)).attr("y1",pH).attr("y2",pH+4).attr("stroke","#78716c");ly.ax.append("text").attr("x",xS(t)).attr("y",pH+16).attr("text-anchor","middle").attr("font-size",10).attr("fill","#57534e").text(Math.round(t)+"%")});
+      yTk.forEach(function(t){ly.ax.append("line").attr("x1",-4).attr("y1",yS(t)).attr("y2",yS(t)).attr("stroke","#78716c");ly.ax.append("text").attr("x",-8).attr("y",yS(t)+4).attr("text-anchor","end").attr("font-size",10).attr("fill","#57534e").text(Math.round(t)+"%")});
+      xpfcSVG.xL.text("NPN MaxRel (%)");xpfcSVG.yL.text("DiSC MaxRel (%)");
+      xpData.filter(function(p){return p.c==="control"||p.c==="prototype"}).forEach(function(p){drPt(ly.pts,p,xS(p.nfc[0]),yS(p.dfc[0]),cFn(p),isPinned(p),det)});
+      xpData.filter(function(p){return p.c!=="control"&&p.c!=="prototype"}).forEach(function(p){drPt(ly.pts,p,xS(p.nfc[0]),yS(p.dfc[0]),cFn(p),isPinned(p),det)});
+      if(pinned&&pinned.nfc&&pinned.dfc){ly.hl.append("circle").attr("cx",xS(pinned.nfc[0])).attr("cy",yS(pinned.dfc[0])).attr("r",13).attr("fill","none").attr("stroke","#22c55e").attr("stroke-width",2).attr("stroke-dasharray","3,2")}
+      Object.values(selSet).forEach(function(sp){if(sp===pinned||!sp.nfc||!sp.dfc)return;ly.hl.append("circle").attr("cx",xS(sp.nfc[0])).attr("cy",yS(sp.dfc[0])).attr("r",11).attr("fill","none").attr("stroke","#22c55e").attr("stroke-width",1.5).attr("stroke-dasharray","2,2")})
+    })();
+    }
+
     showDet(det,null);
     document.querySelectorAll("#mb-cb .bt").forEach(function(b){b.classList.toggle("on",b.dataset.k===mbCol)});
     document.getElementById("mb-zr").style.display=mbZoom?"inline":"none";
     rLeg(document.getElementById("mb-lg"),mbCol);
 
     var nPts=P.filter(function(p){return p.npn!=null&&passFilter(p)}).length;
-    document.getElementById("mb-ft").textContent=nPts+" peptides \u00b7 Click to select \u00b7 Dashed lines = median \u00b7 Drag to zoom";
+    var nFC=P.filter(function(p){return p.nfc!=null&&passFilter(p)}).length;
+    var ftParts=[nPts+" peptides (at MIC)"];
+    if(nFC)ftParts.push(nFC+" (fixed conc.)");
+    ftParts.push("Click to select","Dashed lines = median","Drag to zoom");
+    document.getElementById("mb-ft").textContent=ftParts.join(" \u00b7 ");
+  }
+})();
+
+/* ==== MURINE MODEL TAB ==== */
+(function(){
+  var W=480,H=320,Mg={t:22,r:12,b:45,l:50},pW=W-Mg.l-Mg.r,pH=H-Mg.t-Mg.b;
+  var proCol={"Ω-AP-Mammutin-1-4":"#3b6cb5","Ω-AU-GQ20-4":"#7bacd8","Ω-AMT-bZIP-8":"#f5c242","Ω-AMT-pa4-1":"#e8873a","Ω-AMT-sarcotoxin-4":"#c44e52"};
+  var proSym={"Ω-AP-Mammutin-1-4":"circle","Ω-AU-GQ20-4":"rect","Ω-AMT-bZIP-8":"triangle","Ω-AMT-pa4-1":"invtriangle","Ω-AMT-sarcotoxin-4":"diamond"};
+
+  window.murRender=function(){
+    var proPeps=P.filter(function(p){return p.pro});
+    var det=document.getElementById("mur-dt");
+    var svg=d3.select("#mur-proteo");
+    svg.selectAll("*").remove();
+    if(!proPeps.length){svg.append("text").attr("x",W/2).attr("y",H/2).attr("text-anchor","middle").attr("font-size",13).attr("fill","#a8a29e").text("No proteolysis data available");document.getElementById("mur-ft").textContent="";return}
+    var g=svg.append("g").attr("transform","translate("+Mg.l+","+Mg.t+")");
+    var xS=d3.scaleLinear().domain([0,370]).range([0,pW]);
+    var yS=d3.scaleLinear().domain([0,105]).range([pH,0]);
+    var xTk=[0,60,120,180,240,300,360],yTk=[0,25,50,75,100];
+    xTk.forEach(function(t){g.append("line").attr("x1",xS(t)).attr("x2",xS(t)).attr("y2",pH).attr("stroke","#f5f5f4")});
+    yTk.forEach(function(t){g.append("line").attr("x2",pW).attr("y1",yS(t)).attr("y2",yS(t)).attr("stroke","#f5f5f4")});
+    g.append("line").attr("x2",pW).attr("y1",pH).attr("y2",pH).attr("stroke","#78716c");
+    g.append("line").attr("y2",pH).attr("stroke","#78716c");
+    xTk.forEach(function(t){g.append("line").attr("x1",xS(t)).attr("x2",xS(t)).attr("y1",pH).attr("y2",pH+4).attr("stroke","#78716c");g.append("text").attr("x",xS(t)).attr("y",pH+16).attr("text-anchor","middle").attr("font-size",10).attr("fill","#57534e").text(t)});
+    yTk.forEach(function(t){g.append("line").attr("x1",-4).attr("y1",yS(t)).attr("y2",yS(t)).attr("stroke","#78716c");g.append("text").attr("x",-8).attr("y",yS(t)+4).attr("text-anchor","end").attr("font-size",10).attr("fill","#57534e").text(t+"%")});
+    g.append("text").attr("x",pW/2).attr("y",pH+38).attr("text-anchor","middle").attr("font-size",12).attr("fill","#292524").attr("font-weight",600).text("Time (min)");
+    g.append("text").attr("x",-pH/2).attr("y",-40).attr("text-anchor","middle").attr("font-size",12).attr("fill","#292524").attr("font-weight",600).attr("transform","rotate(-90)").text("Remaining peptide (%)");
+    var clip=g.append("defs").append("clipPath").attr("id","proteo-cp");
+    clip.append("rect").attr("width",pW).attr("height",pH);
+    var pg=g.append("g").attr("clip-path","url(#proteo-cp)");
+    proPeps.forEach(function(p){
+      var d=p.pro,col=proCol[p.n]||"#78716c";
+      d.forEach(function(pt){
+        var lo=Math.min(pt[2]!=null?pt[2]:pt[1],pt[3]!=null?pt[3]:pt[1]);
+        var hi=Math.max(pt[2]!=null?pt[2]:pt[1],pt[3]!=null?pt[3]:pt[1]);
+        pg.append("line").attr("x1",xS(pt[0])).attr("x2",xS(pt[0])).attr("y1",yS(lo)).attr("y2",yS(hi)).attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.6);
+        pg.append("line").attr("x1",xS(pt[0])-3).attr("x2",xS(pt[0])+3).attr("y1",yS(lo)).attr("y2",yS(lo)).attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.6);
+        pg.append("line").attr("x1",xS(pt[0])-3).attr("x2",xS(pt[0])+3).attr("y1",yS(hi)).attr("y2",yS(hi)).attr("stroke",col).attr("stroke-width",1.5).attr("opacity",0.6);
+      });
+      var line=d3.line().x(function(pt){return xS(pt[0])}).y(function(pt){return yS(pt[1])});
+      pg.append("path").attr("d",line(d)).attr("fill","none").attr("stroke",col).attr("stroke-width",2);
+      var sym=proSym[p.n]||"circle";
+      d.forEach(function(pt){
+        var cx=xS(pt[0]),cy=yS(pt[1]);
+        if(sym==="rect"){pg.append("rect").attr("x",cx-4).attr("y",cy-4).attr("width",8).attr("height",8).attr("fill",col).attr("stroke","#fff").attr("stroke-width",1)}
+        else if(sym==="diamond"){pg.append("path").attr("d","M"+cx+","+(cy-5)+"L"+(cx+5)+","+cy+"L"+cx+","+(cy+5)+"L"+(cx-5)+","+cy+"Z").attr("fill",col).attr("stroke","#fff").attr("stroke-width",1)}
+        else if(sym==="triangle"){pg.append("path").attr("d","M"+cx+","+(cy-5)+"L"+(cx+5)+","+(cy+4)+"L"+(cx-5)+","+(cy+4)+"Z").attr("fill",col).attr("stroke","#fff").attr("stroke-width",1)}
+        else if(sym==="invtriangle"){pg.append("path").attr("d","M"+cx+","+(cy+5)+"L"+(cx+5)+","+(cy-4)+"L"+(cx-5)+","+(cy-4)+"Z").attr("fill",col).attr("stroke","#fff").attr("stroke-width",1)}
+        else{pg.append("circle").attr("cx",cx).attr("cy",cy).attr("r",4.5).attr("fill",col).attr("stroke","#fff").attr("stroke-width",1)}
+      });
+      // Invisible wide hit path for hover
+      pg.append("path").attr("d",line(d)).attr("fill","none").attr("stroke","transparent").attr("stroke-width",14).attr("cursor","pointer")
+        .on("mouseover",function(){showDet(det,p)})
+        .on("mouseout",function(){showDet(det,null)})
+        .on("click",function(){selPep(p)});
+    });
+    // Legend (also hoverable) - positioned at top-right with background
+    var lgX=pW-165,lgY=4;
+    var lg=g.append("g").attr("transform","translate("+lgX+","+lgY+")");
+    lg.insert("rect","*").attr("x",-4).attr("y",-4).attr("width",172).attr("height",proPeps.length*16+4).attr("fill","#fff").attr("fill-opacity",0.88).attr("rx",3);
+    proPeps.forEach(function(p,i){
+      var col=proCol[p.n]||"#78716c",y=i*16;
+      var row=lg.append("g").attr("cursor","pointer")
+        .on("mouseover",function(){showDet(det,p)})
+        .on("mouseout",function(){showDet(det,null)})
+        .on("click",function(){selPep(p)});
+      row.append("rect").attr("x",-2).attr("y",y-8).attr("width",170).attr("height",16).attr("fill","transparent");
+      row.append("line").attr("x1",0).attr("x2",18).attr("y1",y).attr("y2",y).attr("stroke",col).attr("stroke-width",2);
+      row.append("circle").attr("cx",9).attr("cy",y).attr("r",3.5).attr("fill",col);
+      var label=p.n.replace(/^Ω-/,"");
+      row.append("text").attr("x",22).attr("y",y+3.5).attr("font-size",9).attr("fill","#57534e").text(label);
+    });
+    showDet(det,null);
+    document.getElementById("mur-ft").textContent=proPeps.length+" peptides with proteolysis data \u00b7 Error bars = replicate range \u00b7 Hover or click to select";
   }
 })();
 
@@ -1868,6 +2059,9 @@ document.getElementById("exportBtn").addEventListener("click",function(){
   ST.forEach(function(s){cols.push("MIC_"+s.s.replace(/[,]/g,""))});
   if(data.some(function(p){return p.disc})){cols.push("DiSC_MaxRel","DiSC_AUC")}
   if(data.some(function(p){return p.npn})){cols.push("NPN_MaxRel","NPN_AUC")}
+  if(data.some(function(p){return p.dfc})){cols.push("DiSC_FC_MaxRel","DiSC_FC_AUC","DiSC_FC_conc_uM")}
+  if(data.some(function(p){return p.nfc})){cols.push("NPN_FC_MaxRel","NPN_FC_AUC","NPN_FC_conc_uM")}
+  if(data.some(function(p){return p.pro})){cols.push("Proteo_30min","Proteo_360min")}
 
   var rows=[cols.join(",")];
   data.forEach(function(p){
@@ -1886,6 +2080,9 @@ document.getElementById("exportBtn").addEventListener("click",function(){
     p.mics.forEach(function(v){r.push(v!=null?v:"")});
     if(cols.indexOf("DiSC_MaxRel")>=0){r.push(p.disc?p.disc[0]:"");r.push(p.disc?p.disc[1]:"")}
     if(cols.indexOf("NPN_MaxRel")>=0){r.push(p.npn?p.npn[0]:"");r.push(p.npn?p.npn[1]:"")}
+    if(cols.indexOf("DiSC_FC_MaxRel")>=0){r.push(p.dfc?p.dfc[0]:"");r.push(p.dfc?p.dfc[1]:"");r.push(p.dfc?p.dfc[2]:"")}
+    if(cols.indexOf("NPN_FC_MaxRel")>=0){r.push(p.nfc?p.nfc[0]:"");r.push(p.nfc?p.nfc[1]:"");r.push(p.nfc?p.nfc[2]:"")}
+    if(cols.indexOf("Proteo_30min")>=0){r.push(p.pro?p.pro[1][1]:"");r.push(p.pro?p.pro[p.pro.length-1][1]:"")}
     rows.push(r.join(","));
   });
 
@@ -1971,6 +2168,6 @@ rerender=function(){_origRerender();updateHash()};
 
 // Decode on load
 decodeState();
-syncUI();tiRender();pcRender();hmRender();mbRender();bdRender();ssRender();
+syncUI();tiRender();pcRender();hmRender();mbRender();bdRender();ssRender();murRender();
 updateHash();
 </script></body></html>
