@@ -23,3 +23,6 @@ paths.local.sh
 
 # Local archive of superseded / reproduction-process files (not committed)
 archive/
+
+# Stray data output from running wetlab scripts inside scripts/ (data stays out of the repo)
+scripts/data/

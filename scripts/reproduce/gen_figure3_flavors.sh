@@ -1,241 +1,204 @@
 #!/usr/bin/env bash
-# =============================================================================
-# Generate the analog flavors comparison dataset for Figure 3.
-#
-# Six conditions per prototype set (positive / negative):
-#   0. OmegAMP baselines — copied from data/figure2/benchmarks/
-#   1. Prototypes         — the prototype FASTAs themselves
-#   2. Analog only        — AnalogConditional
-#   3. Analog + property  — AnalogConditional + PartialConditional
-#   4. Analog + template  — AnalogConditional + TemplateConditional (motif)
-#   5. Analog + template + property
-#
-# τ/σ parameters (chosen from sweep analysis):
-#   Positive: τ=150, σ=1.0
-#   Negative: τ=100, σ=1.0
-#
-# Writes:
-#   data/figure3/flavors/{0_omegamp_baselines … 5_analog_template_property}/
-#     sequences/  — generated FASTA files
-#     predictions/  — APEX MIC TSVs
-#     similarity/   — sequence similarity CSVs (if calculate_similarity.py exists)
-# =============================================================================
-
+# Figure 3 flavors: nine OmegAMP generation modes used in the figure 3
+# comparison. Score separately with score_figure3_flavors.sh.
+# Run under the OmegAMP env.
+# Usage: bash scripts/reproduce/gen_figure3_flavors.sh [--mini] [--only positive|negative]
 set -euo pipefail
 
-SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-source "${SCRIPT_DIR}/config.sh"
-check_config
-check_apex
+source config.sh
 
-OUT="${DATA_DIR}/figure3/flavors"
-NUM_SAMPLES=10
-BATCH_SIZE=256
-
-POSITIVE_TAU=150;  POSITIVE_SIGMA=1.0
-NEGATIVE_TAU=100;  NEGATIVE_SIGMA=1.0
-
-LENGTH_RANGE="5:30"
-CHARGE_RANGE="2:10"
-HYDROPHOBICITY_RANGE="-0.5:0.8"
-
-MOTIF="G____G"
+DENOVO_SAMPLES=50000
+ANALOGS_PER_PROTO=10
+LENGTH="5:30"
+CHARGE="2:10"
+HYDRO="-0.5:0.8"
+MOTIF="G----G"
 MOTIF_SEED=42
 
-# OmegAMP-U / OmegAMP-T baselines copied from the benchmarks folder
-OMEGAMP_U_SRC="${DATA_DIR}/figure2/benchmarks/unconditional.fasta"
-OMEGAMP_T_SRC="${DATA_DIR}/figure2/benchmarks/target-physicochemical.fasta"
-
-# Optional: similarity script (skipped if not present)
-SIMILARITY_SCRIPT="${OMEGAMP_DIR}/project/scripts/postprocessing/calculate_similarity.py"
-
-echo "================================================================"
-echo "Figure 3 — analog flavors comparison"
-echo "Model:     ${CHECKPOINT}"
-echo "Positives: ${POSITIVE_PROTOTYPES}  (τ=${POSITIVE_TAU}, σ=${POSITIVE_SIGMA})"
-echo "Negatives: ${NEGATIVE_PROTOTYPES}  (τ=${NEGATIVE_TAU}, σ=${NEGATIVE_SIGMA})"
-echo "Output:    ${OUT}"
-echo "================================================================"
-
-# Create all subdirectory trees upfront
-for FLAVOR in 0_omegamp_baselines 1_prototypes 2_analog_only 3_analog_property 4_analog_template 5_analog_template_property; do
-    mkdir -p "${OUT}/${FLAVOR}/predictions"
-    mkdir -p "${OUT}/${FLAVOR}/similarity"
+MINI_PROTOS=0
+ONLY=both
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --mini)
+            DENOVO_SAMPLES=100
+            ANALOGS_PER_PROTO=3
+            MINI_PROTOS=5
+            ;;
+        --only) ONLY="$2"; shift ;;
+    esac
+    shift
 done
 
-# ---------------------------------------------------------------------------
-# Helper: run APEX on a FASTA if the TSV doesn't exist yet
-# Usage: maybe_apex INPUT_FASTA OUTPUT_TSV
-# ---------------------------------------------------------------------------
-maybe_apex() {
-    local fasta="$1" tsv="$2"
-    if [ -f "${tsv}" ] && [ -s "${tsv}" ]; then
-        echo "      predictions: skip (exists)"
-    elif [ -f "${fasta}" ] && [ -s "${fasta}" ]; then
-        run_apex "${fasta}" "${tsv}"
-        echo "      predictions: done"
-    else
-        echo "      predictions: skip (no FASTA)"
+OUT="${DATA_DIR}/figure3/flavors"
+WORK="${OUT}/_inputs"
+mkdir -p "${OUT}" "${WORK}"
+
+# In mini mode, subsample to first MINI_PROTOS prototypes for the analog runs.
+prototype_subset() {
+    local src="$1" out="$2" n="$3"
+    awk -v n="${n}" '/^>/{c++; if (c > n) exit} {print}' "${src}" > "${out}"
+}
+
+# Insert MOTIF at a seeded random position in each prototype, producing one
+# length-matched dashed template per prototype, in prototype order.
+make_motif_templates() {
+    local proto_fasta="$1" out_fasta="$2"
+    python - "${proto_fasta}" "${out_fasta}" "${MOTIF}" "${MOTIF_SEED}" <<'PY'
+import sys, random
+proto, out, motif, seed = sys.argv[1], sys.argv[2], sys.argv[3], int(sys.argv[4])
+rng = random.Random(seed)
+entries, hdr, seq = [], None, []
+for line in open(proto):
+    line = line.rstrip()
+    if line.startswith(">"):
+        if hdr is not None:
+            entries.append((hdr, "".join(seq)))
+        hdr, seq = line, []
+    else:
+        seq.append(line)
+if hdr is not None:
+    entries.append((hdr, "".join(seq)))
+with open(out, "w") as f:
+    for hdr, s in entries:
+        L = len(s)
+        if L < len(motif):
+            t = motif[:L]
+        else:
+            start = rng.randint(0, L - len(motif))
+            t = "-" * start + motif + "-" * (L - start - len(motif))
+        f.write(f"{hdr}\n{t}\n")
+PY
+}
+
+cd "${OMEGAMP_DIR}"
+
+# De novo flavors. No prototype set, so --only doesn't apply.
+
+fasta="${OUT}/omegamp_du/OmegAMP-U.fasta"
+mkdir -p "$(dirname "${fasta}")"
+if [ ! -s "${fasta}" ]; then
+    CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_SCRIPT}" de-novo unconditional \
+        --checkpoint_path "${CHECKPOINT}" \
+        --num_samples "${DENOVO_SAMPLES}" --batch_size 256 \
+        --output_fasta "${fasta}" \
+        --conditioning_output_path "${OUT}/omegamp_du/conditioning.pt"
+fi
+
+fasta="${OUT}/omegamp_dt/OmegAMP-T.fasta"
+mkdir -p "$(dirname "${fasta}")"
+if [ ! -s "${fasta}" ]; then
+    CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_SCRIPT}" de-novo targeted \
+        --checkpoint_path "${CHECKPOINT}" \
+        --length="${LENGTH}" --charge="${CHARGE}" --hydrophobicity="${HYDRO}" \
+        --num_samples "${DENOVO_SAMPLES}" --batch_size 256 \
+        --output_fasta "${fasta}" \
+        --conditioning_output_path "${OUT}/omegamp_dt/conditioning.pt"
+fi
+
+fasta="${OUT}/omegamp_dp/denovo_subset.fasta"
+mkdir -p "$(dirname "${fasta}")"
+if [ ! -s "${fasta}" ]; then
+    CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_SCRIPT}" de-novo prototype-derived \
+        --checkpoint_path "${CHECKPOINT}" \
+        --prototype_sequences "${POSITIVE_PROTOTYPES}" \
+        --sigma "${OPTIMAL_POSITIVE_SIGMA}" \
+        --num_samples "${DENOVO_SAMPLES}" --batch_size 256 \
+        --output_fasta "${fasta}" \
+        --conditioning_output_path "${OUT}/omegamp_dp/conditioning.pt"
+fi
+
+# Prototype baselines: copy the source FASTAs.
+mkdir -p "${OUT}/prototypes"
+[ "${ONLY}" != "negative" ] && cp "${POSITIVE_PROTOTYPES}" "${OUT}/prototypes/positive_prototypes.fasta"
+[ "${ONLY}" != "positive" ] && cp "${NEGATIVE_PROTOTYPES}" "${OUT}/prototypes/negative_prototypes.fasta"
+
+# Analog flavors. Five modes per prototype set, sharing two repeated-input
+# FASTAs (one prototypes-repeated, one motif-templates-repeated).
+run_analog_set() {
+    local pt="$1" proto_fasta="$2" tau="$3" sigma="$4"
+
+    if [ "${MINI_PROTOS}" -gt 0 ]; then
+        local mini_proto="${WORK}/${pt}_mini_protos.fasta"
+        prototype_subset "${proto_fasta}" "${mini_proto}" "${MINI_PROTOS}"
+        proto_fasta="${mini_proto}"
+    fi
+
+    local proto_rep="${WORK}/${pt}_proto_repeated.fasta"
+    local motif_rep="${WORK}/${pt}_motif_repeated.fasta"
+    [ -s "${proto_rep}" ] || repeat_fasta "${proto_fasta}" "${ANALOGS_PER_PROTO}" "${proto_rep}"
+    if [ ! -s "${motif_rep}" ]; then
+        make_motif_templates "${proto_fasta}" "${WORK}/${pt}_motif_templates.fasta"
+        repeat_fasta "${WORK}/${pt}_motif_templates.fasta" "${ANALOGS_PER_PROTO}" "${motif_rep}"
+    fi
+    local n=$(grep -c '^>' "${proto_rep}")
+
+    local fasta="${OUT}/omegamp_au/${pt}_analog_only.fasta"
+    mkdir -p "$(dirname "${fasta}")"
+    if [ ! -s "${fasta}" ]; then
+        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_SCRIPT}" analog unconditional \
+            --checkpoint_path "${CHECKPOINT}" \
+            --analog_sequences "${proto_rep}" \
+            --tau "${tau}" \
+            --num_samples "${n}" --batch_size 256 \
+            --output_fasta "${fasta}" \
+            --conditioning_output_path "${OUT}/omegamp_au/${pt}_conditioning.pt"
+    fi
+
+    fasta="${OUT}/omegamp_at/${pt}_analog_property.fasta"
+    mkdir -p "$(dirname "${fasta}")"
+    if [ ! -s "${fasta}" ]; then
+        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_SCRIPT}" analog targeted \
+            --checkpoint_path "${CHECKPOINT}" \
+            --analog_sequences "${proto_rep}" \
+            --tau "${tau}" \
+            --length="${LENGTH}" --charge="${CHARGE}" --hydrophobicity="${HYDRO}" \
+            --num_samples "${n}" --batch_size 256 \
+            --output_fasta "${fasta}" \
+            --conditioning_output_path "${OUT}/omegamp_at/${pt}_conditioning.pt"
+    fi
+
+    fasta="${OUT}/omegamp_am/${pt}_analog_template.fasta"
+    mkdir -p "$(dirname "${fasta}")"
+    if [ ! -s "${fasta}" ]; then
+        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_SCRIPT}" analog-motif unconditional \
+            --checkpoint_path "${CHECKPOINT}" \
+            --analog_sequences "${proto_rep}" \
+            --motif_sequences "${motif_rep}" \
+            --tau "${tau}" --guidance_strength 1.0 \
+            --num_samples "${n}" --batch_size 256 \
+            --output_fasta "${fasta}" \
+            --conditioning_output_path "${OUT}/omegamp_am/${pt}_conditioning.pt"
+    fi
+
+    fasta="${OUT}/omegamp_amt/${pt}_analog_template_property.fasta"
+    mkdir -p "$(dirname "${fasta}")"
+    if [ ! -s "${fasta}" ]; then
+        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_SCRIPT}" analog-motif targeted \
+            --checkpoint_path "${CHECKPOINT}" \
+            --analog_sequences "${proto_rep}" \
+            --motif_sequences "${motif_rep}" \
+            --tau "${tau}" --guidance_strength 1.0 \
+            --length="${LENGTH}" --charge="${CHARGE}" --hydrophobicity="${HYDRO}" \
+            --num_samples "${n}" --batch_size 256 \
+            --output_fasta "${fasta}" \
+            --conditioning_output_path "${OUT}/omegamp_amt/${pt}_conditioning.pt"
+    fi
+
+    fasta="${OUT}/omegamp_ap/${pt}_analog_subset.fasta"
+    mkdir -p "$(dirname "${fasta}")"
+    if [ ! -s "${fasta}" ]; then
+        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_SCRIPT}" analog prototype-derived \
+            --checkpoint_path "${CHECKPOINT}" \
+            --analog_sequences "${proto_rep}" \
+            --prototype_sequences "${proto_rep}" \
+            --tau "${tau}" --sigma "${sigma}" \
+            --num_samples "${n}" --batch_size 256 \
+            --output_fasta "${fasta}" \
+            --conditioning_output_path "${OUT}/omegamp_ap/${pt}_conditioning.pt"
     fi
 }
 
-# ---------------------------------------------------------------------------
-# Helper: run similarity calculation if the script is available
-# Usage: maybe_similarity PROTOTYPE_FASTA PREDICTION_CSV OUTPUT_CSV
-# ---------------------------------------------------------------------------
-maybe_similarity() {
-    local proto="$1" pred_csv="$2" out_csv="$3"
-    if [ -f "${SIMILARITY_SCRIPT}" ] && [ -f "${pred_csv}" ]; then
-        python "${SIMILARITY_SCRIPT}" "${proto}" "${pred_csv}" --output "${out_csv}" 2>/dev/null || true
-    fi
-}
+[ "${ONLY}" != "negative" ] && run_analog_set positive "${POSITIVE_PROTOTYPES}" "${OPTIMAL_POSITIVE_TAU}" "${OPTIMAL_POSITIVE_SIGMA}"
+[ "${ONLY}" != "positive" ] && run_analog_set negative "${NEGATIVE_PROTOTYPES}" "${OPTIMAL_NEGATIVE_TAU}" "${OPTIMAL_NEGATIVE_SIGMA}"
 
-# ---------------------------------------------------------------------------
-# 0. Baselines — copy from figure2/benchmarks
-# ---------------------------------------------------------------------------
-echo ""
-echo "━━━━ Condition 0: OmegAMP baselines ━━━━"
-
-for SRC_FILE in "${OMEGAMP_U_SRC}" "${OMEGAMP_T_SRC}"; do
-    DEST_NAME=$(basename "${SRC_FILE}" .fasta)
-    DEST="${OUT}/0_omegamp_baselines/${DEST_NAME}.fasta"
-    if [ -f "${SRC_FILE}" ]; then
-        cp "${SRC_FILE}" "${DEST}"
-        echo "  copied: $(basename ${SRC_FILE})"
-        maybe_apex "${DEST}" "${OUT}/0_omegamp_baselines/predictions/${DEST_NAME}-min.tsv"
-    else
-        echo "  WARNING: ${SRC_FILE} not found — run gen_figure2_benchmarks first" >&2
-    fi
-done
-
-# ---------------------------------------------------------------------------
-# Run conditions 1–5 for one prototype set
-# ---------------------------------------------------------------------------
-run_conditions() {
-    local proto_file="$1"
-    local pt="$2"
-    local tau="$3"
-    local sigma="$4"
-
-    echo ""
-    echo "======== ${pt} prototypes (τ=${tau}, σ=${sigma}) ========"
-
-    cd "${OMEGAMP_DIR}"
-
-    # ---- 1. Prototypes baseline ----
-    echo ""
-    echo "  Condition 1: prototypes"
-    local DEST="${OUT}/1_prototypes/${pt}_prototypes.fasta"
-    cp "${proto_file}" "${DEST}"
-    maybe_apex "${DEST}" "${OUT}/1_prototypes/predictions/${pt}_prototypes-min.tsv"
-
-    # ---- 2. Analog only ----
-    echo ""
-    echo "  Condition 2: analog only"
-    local FASTA_2="${OUT}/2_analog_only/${pt}_analog_only.fasta"
-    if [ ! -f "${FASTA_2}" ] || [ ! -s "${FASTA_2}" ]; then
-        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_ANALOG_SCRIPT}" AnalogConditional \
-            --analog_file "${proto_file}" \
-            --checkpoint_path "${CHECKPOINT}" \
-            --initial_timestep "${tau}" \
-            --conditioning_closeness "${sigma}" \
-            --num_samples "${NUM_SAMPLES}" \
-            --batch_size "${BATCH_SIZE}" \
-            --output_fasta "${FASTA_2}" \
-            --conditioning_output_path "${OUT}/2_analog_only/${pt}_conditioning.pt"
-    else
-        echo "    sequences: skip (exists)"
-    fi
-    maybe_apex "${FASTA_2}" "${OUT}/2_analog_only/predictions/${pt}_analog_only-min.tsv"
-
-    # ---- 3. Analog + property ----
-    echo ""
-    echo "  Condition 3: analog + property"
-    local FASTA_3="${OUT}/3_analog_property/${pt}_analog_property.fasta"
-    if [ ! -f "${FASTA_3}" ] || [ ! -s "${FASTA_3}" ]; then
-        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_ANALOG_SCRIPT}" AdvancedConditional \
-            --analog_file "${proto_file}" \
-            --checkpoint_path "${CHECKPOINT}" \
-            --length "${LENGTH_RANGE}" \
-            --charge "${CHARGE_RANGE}" \
-            --hydrophobicity "${HYDROPHOBICITY_RANGE}" \
-            --initial_timestep "${tau}" \
-            --conditioning_closeness "${sigma}" \
-            --num_samples "${NUM_SAMPLES}" \
-            --batch_size "${BATCH_SIZE}" \
-            --output_fasta "${FASTA_3}" \
-            --conditioning_output_path "${OUT}/3_analog_property/${pt}_conditioning.pt" \
-            --advanced_conditioning_modes "AnalogConditional,PartialConditional"
-    else
-        echo "    sequences: skip (exists)"
-    fi
-    maybe_apex "${FASTA_3}" "${OUT}/3_analog_property/predictions/${pt}_analog_property-min.tsv"
-
-    # ---- 4. Analog + template (motif) ----
-    echo ""
-    echo "  Condition 4: analog + template"
-    local FASTA_4="${OUT}/4_analog_template/${pt}_analog_template.fasta"
-    if [ ! -f "${FASTA_4}" ] || [ ! -s "${FASTA_4}" ]; then
-        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_ANALOG_SCRIPT}" AdvancedConditional \
-            --analog_file "${proto_file}" \
-            --checkpoint_path "${CHECKPOINT}" \
-            --motif "${MOTIF}" \
-            --motif_seed "${MOTIF_SEED}" \
-            --initial_timestep "${tau}" \
-            --conditioning_closeness "${sigma}" \
-            --num_samples "${NUM_SAMPLES}" \
-            --batch_size "${BATCH_SIZE}" \
-            --output_fasta "${FASTA_4}" \
-            --conditioning_output_path "${OUT}/4_analog_template/${pt}_conditioning.pt" \
-            --advanced_conditioning_modes "TemplateConditional,AnalogConditional"
-    else
-        echo "    sequences: skip (exists)"
-    fi
-    maybe_apex "${FASTA_4}" "${OUT}/4_analog_template/predictions/${pt}_analog_template-min.tsv"
-
-    # ---- 5. Analog + template + property ----
-    echo ""
-    echo "  Condition 5: analog + template + property"
-    local FASTA_5="${OUT}/5_analog_template_property/${pt}_analog_template_property.fasta"
-    if [ ! -f "${FASTA_5}" ] || [ ! -s "${FASTA_5}" ]; then
-        CUDA_VISIBLE_DEVICES=${GPU} python "${GENERATE_ANALOG_SCRIPT}" AdvancedConditional \
-            --analog_file "${proto_file}" \
-            --checkpoint_path "${CHECKPOINT}" \
-            --motif "${MOTIF}" \
-            --motif_seed "${MOTIF_SEED}" \
-            --length "${LENGTH_RANGE}" \
-            --charge "${CHARGE_RANGE}" \
-            --hydrophobicity "${HYDROPHOBICITY_RANGE}" \
-            --initial_timestep "${tau}" \
-            --conditioning_closeness "${sigma}" \
-            --num_samples "${NUM_SAMPLES}" \
-            --batch_size "${BATCH_SIZE}" \
-            --output_fasta "${FASTA_5}" \
-            --conditioning_output_path "${OUT}/5_analog_template_property/${pt}_conditioning.pt" \
-            --advanced_conditioning_modes "TemplateConditional,AnalogConditional,PartialConditional"
-    else
-        echo "    sequences: skip (exists)"
-    fi
-    maybe_apex "${FASTA_5}" "${OUT}/5_analog_template_property/predictions/${pt}_analog_template_property-min.tsv"
-}
-
-# Verify prototype files
-for F in "${POSITIVE_PROTOTYPES}" "${NEGATIVE_PROTOTYPES}"; do
-    if [ ! -f "${F}" ]; then
-        echo "ERROR: prototype file not found: ${F}" >&2
-        exit 1
-    fi
-done
-
-run_conditions "${POSITIVE_PROTOTYPES}" "positive" "${POSITIVE_TAU}" "${POSITIVE_SIGMA}"
-run_conditions "${NEGATIVE_PROTOTYPES}" "negative" "${NEGATIVE_TAU}" "${NEGATIVE_SIGMA}"
-
-echo ""
-echo "================================================================"
-echo "Figure 3 flavors comparison complete."
-fasta_count=$(find "${OUT}" -name "*.fasta" | wc -l)
-pred_count=$(find "${OUT}" -name "*-min.tsv" | wc -l)
-echo "  FASTA files:      ${fasta_count}"
-echo "  Prediction files: ${pred_count}"
-echo "  Output: ${OUT}"
-echo "================================================================"
+echo "Done. $(find "${OUT}" -name '*.fasta' -not -path '*/_inputs/*' | wc -l) FASTA files in ${OUT}"

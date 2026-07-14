@@ -69,9 +69,11 @@ CC50 and HC50 values above 128 uM are right-censored as >128, following standard
 ## Reproducing the manuscript figures
 
 This repository contains the figure notebooks (`notebooks/`) and the
-scripts that regenerated the datasets they visualise
-(`scripts/reproduce/`).  The generative model itself lives in a
-separate repository (`generative-modelling-amp`).
+scripts that regenerate the datasets they visualise
+(`scripts/reproduce/`).  Generation and scoring use the OmegAMP
+inference code, which lives in a separate repository
+(`omegamp-inference`).  All data the notebooks read lives under a single
+`data/` directory (deposited separately; see below).
 
 ### Layout
 
@@ -79,9 +81,10 @@ separate repository (`generative-modelling-amp`).
 |------|----------|
 | `notebooks/figure2_conditioning.ipynb`, `notebooks/figureS1_conditioning.ipynb` | Property conditioning figures |
 | `notebooks/figure3_analog.ipynb`, `notebooks/figureS2_analog.ipynb` | Analog generation figures |
-| `notebooks/figure4_denovo.ipynb`, `notebooks/figure5_analog.ipynb`, `notebooks/figure6_mechanism.ipynb`, `notebooks/figureS3_analog-wet.ipynb`, `notebooks/figureS4_mechanism.ipynb` | Wet-lab figures |
-| `scripts/reproduce/` | Shell scripts that regenerate the model outputs read by Figure 2 and Figure 3 notebooks |
-| `scripts/original/` | Original, unedited generation scripts used during development (kept for provenance) |
+| `notebooks/figure4_denovo.ipynb`, `notebooks/figure5_analog.ipynb`, `notebooks/figure6_mechanism.ipynb`, `notebooks/figure7_safety.ipynb`, `notebooks/figureS3_denovo.ipynb`, `notebooks/figureS4_analog-wet.ipynb`, `notebooks/figureS5_mechanism.ipynb`, `notebooks/figureS6_analog_hydramp.ipynb` | Wet-lab figures |
+| `scripts/reproduce/` | Shell scripts (using `omegamp-inference`) that regenerate the model outputs read by Figure 2 and Figure 3 notebooks |
+| `scripts/*.py` | Loaders / helpers imported by the notebooks (`figure3_sweep.py`, `figure3_flavors.py`, `figure3_constants.py`, `mean_mmseqs_score.py`, `aa_constants.py`, ...) |
+| `data/` | All data the notebooks read (deposited separately; not tracked) |
 | `amp_similarity/` | AMP-specific pairwise similarity scoring (used by Figure 3 Panel B) |
 
 ### Getting the data and rendered figures
@@ -103,48 +106,85 @@ manuscript.  In the meantime, access can be requested from the
 corresponding authors.
 
 Alternatively, the Figure 2 and 3 data can be regenerated from scratch
-with a GPU, the `generative-modelling-amp` repo, and APEX -- see
-"Regenerate datasets" below.
+with a GPU, the `omegamp-inference` repo, and APEX -- see
+"Regenerate datasets" below.  (The competitor benchmark FASTAs, per-species
+MIC tables, the generative training set, and the HydrAMP baselines are
+external inputs that come from the deposit, not from regeneration.)
 
 ### Prerequisites for regeneration
 
 | Dependency | What it is | Where to get it |
 |---|---|---|
-| `generative-modelling-amp` | OmegAMP model code + checkpoint | Internal repo |
-| APEX | MIC prediction tool | Internal (`/raid/battleamp_root/…`) |
+| `omegamp-inference` | OmegAMP model code + checkpoint | Internal repo |
+| APEX | MIC prediction tool | [gitlab.com/machine-biology-group-public/apex](https://gitlab.com/machine-biology-group-public/apex) |
+| mmseqs2 | Sequence similarity search | [mmseqs.com](https://mmseqs.com) or conda |
+| biopython | FASTA parsing | conda / pip |
 
-### 1. Set environment variables
+### 1. Install extra dependencies
+
+With conda/mamba (into whichever environment runs the OmegAMP model):
 
 ```bash
-export OMEGAMP_DIR=/path/to/generative-modelling-amp
+mamba install -c conda-forge -c bioconda biopython mmseqs2
+```
+
+> **Note — SIGILL crash on older CPUs:** The conda mmseqs2 package is
+> compiled for AVX2. If you see a `SIGILL` (illegal instruction) error,
+> download the SSE2 build instead, which runs on any x86\_64 machine:
+>
+> ```bash
+> wget https://mmseqs.com/latest/mmseqs-linux-sse2.tar.gz
+> tar xf mmseqs-linux-sse2.tar.gz
+> # place the binary somewhere on your PATH, e.g.:
+> cp mmseqs/bin/mmseqs /usr/local/bin/mmseqs   # system-wide
+> # or inside your conda env:
+> cp mmseqs/bin/mmseqs "$(conda run -n <env> which python | xargs dirname)/mmseqs"
+> ```
+
+### 2. Set environment variables
+
+Copy `paths.example.sh` to `paths.local.sh` (gitignored) and edit, or export
+directly:
+
+```bash
+export OMEGAMP_DIR=/path/to/omegamp-inference
 export APEX_DIR=/path/to/apex            # only needed for APEX prediction steps
 ```
 
-The checkpoint is expected at `${OMEGAMP_DIR}/data/generative_model.ckpt`.
-Override with `export CHECKPOINT=/other/path/model.ckpt` if needed.
+`config.sh` (sourced by every script) reads these and resolves the checkpoint
+at `${OMEGAMP_DIR}/models/generative_model.ckpt` and the data root at `data/`.
+Override the checkpoint with `export CHECKPOINT=/other/path/model.ckpt`.
 
-### 2. Run figure notebooks
+### 3. Run figure notebooks
 
 Open any notebook in `notebooks/` with JupyterLab.  The notebooks read
 pre-generated data from `data/` (see "Getting the data and rendered
 figures" above).
 
-### 3. Regenerate datasets (optional)
+### 4. Regenerate datasets (optional)
 
-Each script in `scripts/reproduce/` regenerates one dataset from scratch.
+Run all scripts from the repo root (they `source config.sh`). Each stage writes
+into `data/`; add `--mini` to any `gen_*` script for a quick structural check.
+The notebooks then read `data/` directly. The conditioning/score scripts use
+APEX; the `compute_similarity_*` scripts use mmseqs2.
 
 ```bash
-# Figure 2 -- property conditioning
-bash scripts/reproduce/gen_figure2_conditioning.sh   # ~2-4 h on one GPU
-bash scripts/reproduce/gen_figure2_apex.sh           # APEX predictions
+# --- Figure 2 (property conditioning) ---
+bash scripts/reproduce/gen_figure2_conditioning.sh   # de-novo conditioning grids
+bash scripts/reproduce/gen_figure2_benchmarks.sh     # OmegAMP de-novo benchmark FASTAs
+bash scripts/reproduce/score_figure2_conditioning.sh # APEX MIC for conditioning cells
+#   -> notebooks/figure2_conditioning.ipynb, figureS1_conditioning.ipynb
 
-# Figure 3 -- analog parameter sweep & flavor comparison
+# --- Figure 3 sweep (tau/sigma) ---
 bash scripts/reproduce/gen_figure3_sweep.sh
-bash scripts/reproduce/gen_figure3_flavors.sh
+bash scripts/reproduce/score_figure3_sweep.sh
+bash scripts/reproduce/compute_similarity_figure3_sweep.sh
 
-# Wet-lab candidate generation
-bash scripts/reproduce/gen_wetlab.sh
-bash scripts/reproduce/gen_wetlab_motifs.sh          # template/motif runs
+# --- Figure 3 flavors (generation modes) ---
+bash scripts/reproduce/gen_figure3_flavors.sh
+bash scripts/reproduce/score_figure3_flavors.sh
+bash scripts/reproduce/compute_similarity_figure3_flavors.sh
+#   -> notebooks/figure3_analog.ipynb, figureS2_analog.ipynb
 ```
 
 ---
