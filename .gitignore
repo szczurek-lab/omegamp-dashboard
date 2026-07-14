@@ -10,12 +10,16 @@ data.zip
 
 # Raw experimental data and rendered figures -- not tracked until publication.
 # See README for how to request access.
-data/
+# Exception: the reference table is the single source of truth for the
+# peptide id->name->sequence mapping and IS tracked (a gitignored copy is how
+# the prototype label swap went unnoticed).
+data/*
+!data/omegamp_reference_table.csv
 figures/
 
-# Legacy / scratch notebooks
-notebooks/OmegAMP_figures.ipynb
-notebooks/Untitled.ipynb
-
-# Notebook checkpoints only -- notebooks themselves are tracked
+# Notebook checkpoints (notebooks themselves are tracked) + local path overrides
 notebooks/.ipynb_checkpoints/
+paths.local.sh
+
+# Local archive of superseded / reproduction-process files (not committed)
+archive/
