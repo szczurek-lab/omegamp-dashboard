@@ -155,14 +155,28 @@ def load_reference_table(path):
         return {_name(r): r for r in csv.DictReader(f)}
 
 
+def _mic_val(s):
+    """Parse a MIC cell. Empty -> None (not tested). Censored bounds like ">64"
+    are kept as the numeric bound (64) -- a tested, inactive measurement, so it
+    counts as a tested strain and feeds the heatmap / geometric mean."""
+    s = s.strip()
+    if not s:
+        return None
+    if s[0] in '<>':
+        s = s[1:].strip()
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
 def load_mic(path):
     mic = {}
     with open(path) as f:
         rd = csv.DictReader(f)
         cols = [c for c in rd.fieldnames if c != 'short_name']
         for row in rd:
-            mic[_name(row)] = [float(row[c].strip()) if row[c].strip() else None
-                               for c in cols]
+            mic[_name(row)] = [_mic_val(row[c]) for c in cols]
     return mic
 
 
@@ -311,7 +325,7 @@ def build_peptides(ref, mic_data, cc50_data, hc50_data,
             'm': r.get('conditioning', ''),
             'p': r.get('prototype_display') or r.get('prototype', ''),
             'o': r.get('objective', ''),
-            'L': int(r['length']) if r.get('length') else 0,
+            'L': int(float(r['length'])) if r.get('length') else 0,
             'mics': mics, 'mic': gmean,
             'cc': round(cc, 3) if cc else None,
             'hc': round(hc, 3) if hc else None,
