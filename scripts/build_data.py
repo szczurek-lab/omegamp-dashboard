@@ -27,7 +27,6 @@ override automatically; all other contexts map sequence_9310 → Ω-DP-68.
 import csv as csv_module
 import os
 import re
-import subprocess
 import sys
 from pathlib import Path
 
@@ -85,6 +84,11 @@ LPS_NAME_NORM = {
 BESTSEL_FRACTIONS = ["fH", "f_beta_anti", "f_beta_par", "fturn", "fothers"]
 BESTSEL_SOLVENTS  = ["H2O", "TFE_H2O", "SDS_H2O", "MeOH_H2O"]   # raw file order
 BESTSEL_COLS = [f"{f}_{s}" for f in BESTSEL_FRACTIONS for s in BESTSEL_SOLVENTS]
+
+# Every de novo peptide has measured BeStSel data. If bestsel.csv drops below
+# this, the per-solvent raw CSVs are missing and figure S4 / the dashboard
+# silently lose peptides — fail the build instead (see 25-vs-95 regression).
+EXPECTED_DENOVO_BESTSEL = 95
 
 # Per-solvent BeStSel CSV suffixes, in BESTSEL_SOLVENTS order.
 _SS_SOLVENT_SUFFIXES = [
@@ -179,6 +183,11 @@ def build_mic(by_seqid, by_seq):
     -------
     Summary_pathogens.csv           1st test batch (de novo); has Peptide+Sequence columns.
     Summary_pathogens_2nd_set.csv   2nd test batch (analogs + more); blank first column.
+    MIC_Summary_Pathogens_with_lower_than_1uM_results.csv
+                                    Re-reads, below 1 uM, of peptides that bottomed
+                                    out at MIC = 1 uM in the batches above.  Its
+                                    header row is misaligned with its data and is
+                                    corrected on load -- see the note further down.
 
     In the 2nd-set file sequence_9310 is the bZIP-4 analog → apply BZIP_OVERRIDE.
     """
@@ -226,6 +235,63 @@ def build_mic(by_seqid, by_seq):
         .drop_duplicates(subset=["short_name"], keep="first")
         .drop(columns=["_n_null"])
         .reset_index(drop=True)
+    )
+
+    # ── 3rd source: sub-1 uM re-reads ────────────────────────────────────────
+    # Peptides that bottomed out at MIC = 1 uM were re-measured below 1 uM.
+    #
+    # The shipped file's HEADER ROW IS OUT OF STEP WITH ITS DATA.  Its data
+    # columns follow the 1st-set layout (E. coli K-12 BW25113 sits 8th, right
+    # after E. coli BAA-3170); the shipped header is the 2nd-set layout (K-12
+    # last).  Read as shipped, every value from K. pneumoniae ATCC 13883 onward
+    # lands on the strain one column to its left.  So we discard the shipped
+    # header and relabel the data with the 1st-set layout.
+    #
+    # Verified two independent ways: under this layout all 25 first-set peptides
+    # match Summary_pathogens.csv exactly, and every peptide with no sub-1 value
+    # matches Summary_pathogens_2nd_set.csv exactly (99/99).  The resulting merge
+    # touches only sub-1 cells -- no strain reassignment, no activity-threshold
+    # crossings.
+    #
+    # The Polymyxin B / Levofloxacin rows in that file follow the OTHER (2nd-set)
+    # layout and are byte-identical to the 2nd-set file, so they are skipped and
+    # taken from df2 above.
+    layout_1st = list(
+        pd.read_csv(RAW / "mic" / "Summary_pathogens.csv", nrows=0).columns
+    )[2:]
+    df3 = pd.read_csv(
+        RAW / "mic" / "MIC_Summary_Pathogens_with_lower_than_1uM_results.csv"
+    )
+    pids = df3[df3.columns[0]].astype(str).str.strip().str.strip('"')
+    df3 = df3[df3.columns[1:]]
+    assert len(df3.columns) == len(layout_1st), "sub-1 file: unexpected column count"
+    df3.columns = layout_1st                      # relabel; shipped header is wrong
+
+    ANTIBIOTIC_ROWS = {"Polymyxin B", "Levofloxacin"}
+    seen_9310 = 0
+    names_3rd, keep = [], []
+    for pid in pids:
+        if pid in ANTIBIOTIC_ROWS:
+            names_3rd.append(None); keep.append(False); continue
+        if pid == "sequence_9310":
+            seen_9310 += 1
+            names_3rd.append("Ω-DP-68" if seen_9310 == 1 else "Ω-MT-bZIP-4")
+        else:
+            names_3rd.append(resolve(pid, "", by_seqid, by_seq))
+        keep.append(True)
+    df3 = df3.assign(short_name=names_3rd).loc[keep]
+    overlay = (
+        df3.reindex(columns=["short_name"] + MIC_PATHOGENS)
+        .drop_duplicates(subset=["short_name"], keep="first")
+        .set_index("short_name")
+    )
+
+    base = combined.set_index("short_name")
+    order = list(base.index) + [n for n in overlay.index if n not in set(base.index)]
+    base = base.reindex(order)
+    base.loc[overlay.index, MIC_PATHOGENS] = overlay[MIC_PATHOGENS]
+    combined = (
+        base.reindex(columns=MIC_PATHOGENS).rename_axis("short_name").reset_index()
     )
 
     # ── Censor NaN → ">64" ───────────────────────────────────────────────────
@@ -435,85 +501,6 @@ def build_lps_binding(by_seqid, by_seq):
     print(f"lps_binding.csv:{len(rows):>4} rows")
 
 
-# ── BeStSel PDF parser ────────────────────────────────────────────────────────
-# Tokens that appear in the PDF heatmap but are not peptide names or data values.
-_PDF_SKIP = frozenset({
-    "fH", "fβ-antiparallel", "fβ-parallel", "fturn", "fothers",
-    "Secondary", "Structure", "(%)",
-})
-# Colorbar tick integers (no decimal point in PDF text).
-_COLORBAR = frozenset({"0", "20", "40", "60", "80", "100"})
-
-# Tokens that match known peptide identifier patterns in BeStSel PDFs.
-_PEPTIDE_RE = re.compile(
-    r"^(?:sequence_\d+[b]?|DBAASPS_\d+|DeNo\d+|BoCo[-\d]+|GQ\d+"
-    r"|Mammutin-\d+|bZIP|cecropin-P\d?|LG\d+|pa\d+|sarcotoxin-\d+[A-Z]?)$"
-)
-# PDF-specific name normalisation (display names → canonical short_names).
-_PDF_NAME_NORM = {**LPS_NAME_NORM, "BoCo1": "BoCo-1", "bZIP": "bZIP"}
-# Float values in BeStSel PDFs always carry a decimal point; colorbar ticks do not.
-_FLOAT_RE = re.compile(r"^\d+\.\d+$")
-
-
-def _parse_bestsel_pdf(pdf_path: Path, by_seqid: dict, by_seq: dict,
-                       overrides: dict | None = None) -> list[dict]:
-    """Extract peptide rows from a BeStSel per-group heatmap PDF.
-
-    Each row in the heatmap carries exactly 20 float values in the order
-    H2O, TFE/H2O, SDS/H2O, MeOH/H2O repeated for each of the 5 fractions.
-    pdftotext -layout preserves this structure; colorbar ticks (pure integers
-    0/20/40/60/80/100) and header words are filtered out.
-    """
-    res = subprocess.run(
-        ["pdftotext", "-layout", str(pdf_path), "-"],
-        capture_output=True, text=True,
-    )
-    if res.returncode != 0:
-        print(f"  WARNING: pdftotext failed for {pdf_path.name} — skipping")
-        return []
-
-    tokens = res.stdout.split()
-    rows = []
-    i = 0
-
-    while i < len(tokens):
-        tok = tokens[i]
-        if tok in _PDF_SKIP or tok in _COLORBAR:
-            i += 1
-            continue
-
-        if not _PEPTIDE_RE.match(tok):
-            i += 1
-            continue
-
-        # Found a peptide name — collect exactly 20 decimal-point floats.
-        vals: list[float] = []
-        j = i + 1
-        while j < len(tokens) and len(vals) < 20:
-            t = tokens[j]
-            if _FLOAT_RE.match(t):
-                vals.append(float(t))
-            elif t in _PDF_SKIP:
-                pass
-            elif t in _COLORBAR:
-                pass
-            elif _PEPTIDE_RE.match(t):
-                break  # next peptide started before we got 20 values
-            j += 1
-
-        if len(vals) == 20:
-            canonical = _PDF_NAME_NORM.get(tok) or resolve(tok, "", by_seqid, by_seq, overrides=overrides)
-            row: dict = {"short_name": canonical}
-            for k, col in enumerate(BESTSEL_COLS):
-                row[col] = vals[k]
-            rows.append(row)
-            i = j
-        else:
-            i += 1  # couldn't collect 20 values — skip this token
-
-    return rows
-
-
 def build_bestsel(by_seqid, by_seq):
     """
     Primary source:  {Group}_BeStSel_{H2O|TFE|SDS|MeOH}_heatmap.csv
@@ -574,8 +561,22 @@ def build_bestsel(by_seqid, by_seq):
         return
 
     result = pd.concat(frames, ignore_index=True).drop_duplicates(subset=["short_name"])
+
+    # Guard against silently building a truncated dataset (see EXPECTED_DENOVO_BESTSEL).
+    ref = pd.read_csv(REF_TABLE, usecols=["short_name", "category"])
+    ref["short_name"] = ref["short_name"].str.strip()
+    names = result["short_name"].str.strip()
+    n_denovo = int(ref.loc[ref["short_name"].isin(names), "category"].eq("de_novo").sum())
+    if n_denovo < EXPECTED_DENOVO_BESTSEL:
+        raise SystemExit(
+            f"  ERROR: bestsel.csv has {n_denovo} de novo peptides "
+            f"(expected {EXPECTED_DENOVO_BESTSEL}). Per-solvent BeStSel CSVs are "
+            f"likely missing from {RAW / 'secondary_structure'} — refusing to "
+            f"write a truncated dataset."
+        )
+
     result.to_csv(OUT / "bestsel.csv", index=False)
-    print(f"bestsel.csv:    {len(result):>4} rows")
+    print(f"bestsel.csv:    {len(result):>4} rows  ({n_denovo} de novo)")
 
 
 def build_proteolysis():
@@ -619,6 +620,65 @@ def build_proteolysis():
     print(f"proteolysis.csv:{len(rows):>4} rows")
 
 
+# raw murine group label -> canonical short_name. bZIP is a motif design (MT),
+# not an analog; the raw files label it AMT, so it is corrected here.
+MURINE_NAMES = {
+    "Control": "Control", "Polymyxin B": "Polymyxin B", "Levofloxacin": "Levofloxacin",
+    "AT-BoCo1-5": "Ω-AT-BoCo1-5", "AT-BoCo1-9": "Ω-AT-BoCo1-9",
+    "DP-52": "Ω-DP-52", "DP-19": "Ω-DP-19",
+    "AMT-cecropin-1": "Ω-AMT-cecropin-1", "AMT-cecropin-4": "Ω-AMT-cecropin-4",
+    "AMT-bZIP-8": "Ω-MT-bZIP-8", "AMT-pa4-1": "Ω-AMT-pa4-1",
+}
+MURINE = {
+    "murine_skin.csv": {
+        "cfu": [("CFU - Skin Scarification - A. baumannii ATCC19606 - Day 2.csv", 2),
+                ("CFU - Skin Scarification - A. baumannii ATCC19606 - Day 4.csv", 4)],
+        "weight": "Normalize of Mouse weight - Skin Scarification - A. baumannii ATCC19606.csv"},
+    "murine_thigh.csv": {
+        "cfu": [("CFU - Thigh Infection - A. baumannii ATCC19606 - Day 6.csv", 6),
+                ("CFU - Thigh Infection - A. baumannii ATCC19606 - Day 8.csv", 8)],
+        "weight": "Normalize of Mouse weight - Thigh Infection - A. baumannii ATCC19606.csv"},
+}
+
+
+def build_murine():
+    """In vivo CFU (raw CFU g-1, one file per day) and body-weight (%) time-courses,
+    one tidy file per model: short_name, assay (cfu|weight), day, replicate, value.
+    """
+    d = RAW / "murine"
+    for out, spec in MURINE.items():
+        rows = []
+        for fname, day in spec["cfu"]:                       # CFU: one data row per file
+            rr = list(csv_module.reader(open(d / fname)))
+            hdr, vals = rr[0], rr[1]
+            rep = {}
+            for i in range(1, len(hdr)):
+                v = vals[i].strip()
+                if not v:
+                    continue
+                sn = MURINE_NAMES.get(hdr[i].strip(), hdr[i].strip())
+                rep[sn] = rep.get(sn, 0) + 1
+                rows.append({"short_name": sn, "assay": "cfu", "day": day,
+                             "replicate": rep[sn], "value": float(v)})
+        rr = list(csv_module.reader(open(d / spec["weight"])))  # weight: time-course
+        hdr = rr[0]
+        for r in rr[1:]:
+            if not r or not r[0].strip():
+                continue
+            day = int(float(r[0]))
+            rep = {}
+            for i in range(1, len(hdr)):
+                v = r[i].strip()
+                if not v:
+                    continue
+                sn = MURINE_NAMES.get(hdr[i].strip(), hdr[i].strip())
+                rep[sn] = rep.get(sn, 0) + 1
+                rows.append({"short_name": sn, "assay": "weight", "day": day,
+                             "replicate": rep[sn], "value": float(v)})
+        pd.DataFrame(rows)[["short_name", "assay", "day", "replicate", "value"]].to_csv(OUT / out, index=False)
+        print(f"{out}:{len(rows):>4} rows")
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Main
 # ─────────────────────────────────────────────────────────────────────────────
@@ -642,3 +702,4 @@ if __name__ == "__main__":
     build_lps_binding(by_seqid, by_seq)
     build_bestsel(by_seqid, by_seq)
     build_proteolysis()
+    build_murine()
