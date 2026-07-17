@@ -232,6 +232,34 @@ def load_proteolysis(path):
     return dict(raw)
 
 
+def load_murine(path):
+    """Load a tidy murine CSV (short_name, assay, day, replicate, value).
+
+    Returns {'groups': [...], 'cfu': {day: {group: [values]}},
+             'weight': {day: {group: [values]}}} with day as a string key.
+    CFU values are raw CFU/g -- the front end plots log10.  Group order follows
+    first appearance in the file, which is the intended display order.
+    """
+    out = {'cfu': {}, 'weight': {}}
+    groups = []
+    with open(path) as f:
+        for row in csv.DictReader(f):
+            assay = row.get('assay', '').strip()
+            if assay not in out:
+                continue
+            try:
+                day = float(row['day'])
+                val = float(row['value'])
+            except (ValueError, KeyError):
+                continue
+            g = _name(row)
+            if g not in groups:
+                groups.append(g)
+            out[assay].setdefault(f'{day:g}', {}).setdefault(g, []).append(val)
+    out['groups'] = groups
+    return out
+
+
 def load_bestsel(path):
     """Returns {name: [[fH, fBa, fBp, fT, fO] × 4 solvents]}."""
     fracs = ['fH', 'f_beta_anti', 'f_beta_par', 'fturn', 'fothers']
@@ -376,6 +404,11 @@ def main():
     lps  = _load_if_exists(os.path.join(dd, 'lps_binding.csv'), load_lps)
     dna  = _load_if_exists(os.path.join(dd, 'dna_binding.csv'), load_dna)
     pro  = _load_if_exists(os.path.join(dd, 'proteolysis.csv'), load_proteolysis)
+    murine = {}
+    for model in ('skin', 'thigh'):
+        m = _load_if_exists(os.path.join(dd, f'murine_{model}.csv'), load_murine)
+        if m:
+            murine[model] = m
 
     help_dir = args.help_dir or os.path.join(dd, 'help')
     help_texts = load_help(help_dir)
@@ -384,7 +417,8 @@ def main():
 
     sizes = {'ref': len(ref), 'MIC': len(mic), 'CC50': len(cc50), 'HC50': len(hc50),
              'DiSC': len(disc), 'NPN': len(npn), 'DiSC-FC': len(dfc), 'NPN-FC': len(nfc),
-             'BeStSel': len(bsl), 'LPS': len(lps), 'DNA': len(dna), 'Proteo': len(pro)}
+             'BeStSel': len(bsl), 'LPS': len(lps), 'DNA': len(dna), 'Proteo': len(pro),
+             'Murine': sum(len(m.get('groups', [])) for m in murine.values())}
     print(f"  {' · '.join(f'{v} {k}' for k, v in sizes.items())}")
 
     print("  Computing physicochemical descriptors (modlAMP)...")
@@ -396,7 +430,7 @@ def main():
     print(f"  {n_mic} with MIC data")
 
     payload = json.dumps({'peptides': peptides, 'strains': STRAIN_INFO,
-                          'help': help_texts},
+                          'help': help_texts, 'murine': murine},
                          separators=(',', ':'))
     print(f"  JSON: {len(payload)/1024:.1f} KB")
 

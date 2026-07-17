@@ -18,6 +18,7 @@ The dashboard presents wet-lab validation results for 95 de novo peptides, 59 an
 | **Target Binding** | LPS neutralization (BC probe displacement at 2, 8, 32 uM +/- Ca2+) and DNA binding (deltaA from CD spectrometry). |
 | **Structure** | Circular dichroism secondary structure (BeStSel deconvolution) across four solvent conditions (H2O, MeOH, SDS, TFE). |
 | **Safety** | MIC vs CC50/HC50 scatter plots for Safety Window assessment. |
+| **Murine Model** | In vivo efficacy: bacterial burden (log10 CFU/g) and body-weight change for the skin scarification and neutropenic thigh *A. baumannii* ATCC 19606 models, plus proteolytic stability. Box plots show individual mice; peptides are selectable and respect the filter bar. |
 | **Compare** | Side-by-side comparison table of selected peptides. |
 
 ## How to use it
