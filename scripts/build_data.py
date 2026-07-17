@@ -316,15 +316,35 @@ def build_disc(by_seqid, by_seq):
     print(f"disc.csv:       {len(df):>4} rows")
 
 
+def _load_fc_concentrations(by_seqid, by_seq):
+    """Map short_name -> tested fixed concentration (μM) for the MoA FC assays.
+
+    Source: membrane_mechanism/tested_concentrations_FC.csv (per-peptide table).
+    The concentration is family-anchored, so all analogs of a family share one
+    value (e.g. cecropin/LG21/pa4/sarcotoxin = 0.5, bZIP = 2, Mammutin-1 = 16).
+    Returns {} if the table is absent (concentration_uM then left blank).
+    """
+    path = RAW / "membrane_mechanism" / "tested_concentrations_FC.csv"
+    if not path.exists():
+        print("  WARNING: tested_concentrations_FC.csv missing — concentration_uM left blank")
+        return {}
+    t = pd.read_csv(path)
+    conc = {}
+    for _, r in t.iterrows():
+        seq = str(r["Sequence"]) if pd.notna(r.get("Sequence")) else ""
+        conc[resolve(str(r["Peptide"]), seq, by_seqid, by_seq)] = r["concentration_uM"]
+    return conc
+
+
 def build_disc_fc(by_seqid, by_seq):
-    """DiSC3-5 fixed-concentration (16 μM): blank id, MaxRel, AUC."""
+    """DiSC3-5 fixed-concentration: blank id, MaxRel, AUC, per-peptide conc."""
     df = pd.read_csv(
         RAW / "membrane_mechanism" / "disc" / "DiSC3-5_MaxRel_vs_AUC_FC.csv"
     )
     df = df.rename(columns={df.columns[0]: "pid"})
     df["short_name"] = [resolve(p, "", by_seqid, by_seq) for p in df["pid"]]
     df = df[["short_name", "MaxRel", "AUC"]]
-    df["concentration_uM"] = 16
+    df["concentration_uM"] = df["short_name"].map(_load_fc_concentrations(by_seqid, by_seq))
     df.to_csv(OUT / "disc_fc.csv", index=False)
     print(f"disc_fc.csv:    {len(df):>4} rows")
 
@@ -343,14 +363,14 @@ def build_npn(by_seqid, by_seq):
 
 
 def build_npn_fc(by_seqid, by_seq):
-    """NPN fixed-concentration (16 μM): blank id, MaxRel, AUC."""
+    """NPN fixed-concentration: blank id, MaxRel, AUC, per-peptide conc."""
     df = pd.read_csv(
         RAW / "membrane_mechanism" / "npn" / "NPN_MaxRel_vs_AUC _FC.csv"
     )
     df = df.rename(columns={df.columns[0]: "pid"})
     df["short_name"] = [resolve(p, "", by_seqid, by_seq) for p in df["pid"]]
     df = df[["short_name", "MaxRel", "AUC"]]
-    df["concentration_uM"] = 16
+    df["concentration_uM"] = df["short_name"].map(_load_fc_concentrations(by_seqid, by_seq))
     df.to_csv(OUT / "npn_fc.csv", index=False)
     print(f"npn_fc.csv:     {len(df):>4} rows")
 
