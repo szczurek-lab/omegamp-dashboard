@@ -16,6 +16,7 @@ data.zip
 data/*
 !data/omegamp_reference_table.csv
 figures/
+supplementary/
 
 # Notebook checkpoints (notebooks themselves are tracked) + local path overrides
 notebooks/.ipynb_checkpoints/

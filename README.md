@@ -82,8 +82,9 @@ inference code, which lives in a separate repository
 |------|----------|
 | `notebooks/figure2_conditioning.ipynb`, `notebooks/figureS1_conditioning.ipynb` | Property conditioning figures |
 | `notebooks/figure3_analog.ipynb`, `notebooks/figureS2_analog.ipynb` | Analog generation figures |
-| `notebooks/figure4_denovo.ipynb`, `notebooks/figure5_analog.ipynb`, `notebooks/figure6_mechanism.ipynb`, `notebooks/figure7_safety.ipynb`, `notebooks/figureS3_denovo.ipynb`, `notebooks/figureS4_analog-wet.ipynb`, `notebooks/figureS5_mechanism.ipynb`, `notebooks/figureS6_analog_hydramp.ipynb` | Wet-lab figures |
+| `notebooks/figure4_denovo.ipynb`, `notebooks/figure5_analog.ipynb`, `notebooks/figure6_mechanism.ipynb`, `notebooks/figure7_safety.ipynb`, `notebooks/figureS3_denovo.ipynb`, `notebooks/figureS4_analog-wet.ipynb`, `notebooks/figureS5_mechanism.ipynb` | Wet-lab figures |
 | `scripts/reproduce/` | Shell scripts (using `omegamp-inference`) that regenerate the model outputs read by Figure 2 and Figure 3 notebooks |
+| `scripts/build_supplementary.py` | Builds the manuscript supplementary deposits (Data S1 prototype tables, Data S2 wet-lab workbook) from `data/` |
 | `scripts/*.py` | Loaders / helpers imported by the notebooks (`figure3_sweep.py`, `figure3_flavors.py`, `figure3_constants.py`, `mean_mmseqs_score.py`, `aa_constants.py`, ...) |
 | `data/` | All data the notebooks read (deposited separately; not tracked) |
 | `amp_similarity/` | AMP-specific pairwise similarity scoring (used by Figure 3 Panel B) |
@@ -200,3 +201,20 @@ python build_dashboard.py --data-dir data --help-dir help -o docs/index.html
 ```
 
 For password-protected deployment, see `deploy.sh`.
+
+---
+
+## Building the supplementary data deposits
+
+Regenerates the manuscript supplementary files from the same processed
+tables the notebooks and dashboard read (`data/*.csv`, plus the prototype
+FASTAs) -- no raw files involved.  Requires pandas and openpyxl.
+
+```bash
+python scripts/build_supplementary.py     # -> supplementary/ (gitignored)
+```
+
+| Output | Contents |
+|---|---|
+| `Data_S1_prototype_set.xlsx` | The 500 active and 500 inactive DBAASP prototype sequences (identifier + sequence, one sheet each) |
+| `Data_S2_wetlab_dataset.xlsx` | One sheet per measurement type for the 215 wet-lab characterised peptides (+ antibiotic controls), with a README sheet documenting every sheet, unit and censoring rule |
