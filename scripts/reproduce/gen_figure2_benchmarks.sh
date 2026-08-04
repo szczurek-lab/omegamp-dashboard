@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# OmegAMP de-novo benchmark sets for figure 2 Panel C (and figure 2/S1 novelty).
+# OmegAMP de-novo benchmark sets for figure 2 Panel H (and figure 2/S1 novelty).
 # Three generation modes, written to data/figure2/benchmarks/:
 #   unconditional.fasta          OmegAMP-DU  de-novo unconditional
 #   target-physicochemical.fasta OmegAMP-DT  de-novo targeted (length/charge/hydrophobicity)
