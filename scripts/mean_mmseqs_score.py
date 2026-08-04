@@ -47,7 +47,8 @@ def _find_mmseqs():
         "or set the MMSEQS_BIN environment variable."
     )
 
-MMSEQ_BIN = _find_mmseqs()
+# Resolved lazily: notebooks that only read cached similarity CSVs (mmseqs_sim below)
+# must import fine on a host without the binary; the error still fires on real use.
 PROFILE = "easy-search"
 MMSEQS_THREADS = int(_os.environ.get("MMSEQS_THREADS", "2"))
 
@@ -66,7 +67,7 @@ def safe_load_tsv(path):
 
 def run_mmseq(query_fasta, database, i, add_self_matches=False):
     cmd = [
-        MMSEQ_BIN,
+        _find_mmseqs(),
         PROFILE,
         query_fasta,
         database,
