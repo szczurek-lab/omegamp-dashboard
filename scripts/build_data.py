@@ -337,12 +337,17 @@ def _load_fc_concentrations(by_seqid, by_seq):
 
 
 def build_disc_fc(by_seqid, by_seq):
-    """DiSC3-5 fixed-concentration: blank id, MaxRel, AUC, per-peptide conc."""
+    """DiSC3-5 fixed-concentration: blank id, MaxRel, AUC, per-peptide conc.
+
+    The FC panel is analog/motif only (no de novo peptides) and carries no
+    Sequence column, so sequence_9310 is the bZIP-4 analog → BZIP_OVERRIDE.
+    """
     df = pd.read_csv(
         RAW / "membrane_mechanism" / "disc" / "DiSC3-5_MaxRel_vs_AUC_FC.csv"
     )
     df = df.rename(columns={df.columns[0]: "pid"})
-    df["short_name"] = [resolve(p, "", by_seqid, by_seq) for p in df["pid"]]
+    df["short_name"] = [resolve(p, "", by_seqid, by_seq, overrides=BZIP_OVERRIDE)
+                        for p in df["pid"]]
     df = df[["short_name", "MaxRel", "AUC"]]
     df["concentration_uM"] = df["short_name"].map(_load_fc_concentrations(by_seqid, by_seq))
     df.to_csv(OUT / "disc_fc.csv", index=False)
@@ -363,12 +368,16 @@ def build_npn(by_seqid, by_seq):
 
 
 def build_npn_fc(by_seqid, by_seq):
-    """NPN fixed-concentration: blank id, MaxRel, AUC, per-peptide conc."""
+    """NPN fixed-concentration: blank id, MaxRel, AUC, per-peptide conc.
+
+    Same bZIP context as build_disc_fc: sequence_9310 is Ω-MT-bZIP-4 here.
+    """
     df = pd.read_csv(
         RAW / "membrane_mechanism" / "npn" / "NPN_MaxRel_vs_AUC _FC.csv"
     )
     df = df.rename(columns={df.columns[0]: "pid"})
-    df["short_name"] = [resolve(p, "", by_seqid, by_seq) for p in df["pid"]]
+    df["short_name"] = [resolve(p, "", by_seqid, by_seq, overrides=BZIP_OVERRIDE)
+                        for p in df["pid"]]
     df = df[["short_name", "MaxRel", "AUC"]]
     df["concentration_uM"] = df["short_name"].map(_load_fc_concentrations(by_seqid, by_seq))
     df.to_csv(OUT / "npn_fc.csv", index=False)
