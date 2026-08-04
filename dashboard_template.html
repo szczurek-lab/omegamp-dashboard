@@ -419,8 +419,8 @@ var micThresh=4;
 function countNS(p){if(!p.mics)return 0;var n=0;for(var i=0;i<p.mics.length;i++){if(p.mics[i]!=null&&p.mics[i]<=micThresh)n++}return n}
 function countNM(p){if(!p.mics)return 0;var n=0;for(var i=0;i<p.mics.length;i++){if(p.mics[i]!=null&&p.mics[i]<=micThresh&&ST[i].m)n++}return n}
 
-var FC={"":"#6b7280","Mammutin-1":"#e11d48","GQ20":"#f59e0b","BoCo1":"#10b981","DeNo1047":"#3b82f6","As-CATH4-6L":"#8b5cf6","OP-145-TII4":"#ec4899","bZIP":"#06b6d4","cecropin":"#84cc16","LG21":"#f97316","pa4":"#14b8a6","sarcotoxin":"#a855f7"};
-var ML={DP:"De novo (prototype-guided)",DT:"De novo (targeted)",AP:"Analog (prototype-guided)",AT:"Analog (targeted)",AU:"Analog (unconditional)",AMT:"Analog (motif+targeted)","":""};
+var FC={"":"#6b7280","Mammutin-1":"#e11d48","GQ20":"#f59e0b","BoCo1":"#10b981","DeNo1047":"#3b82f6","As-CATH4-6L":"#8b5cf6","OP-145-TII4":"#ec4899","bZIP":"#06b6d4","Cecropin-P1":"#84cc16","LG21":"#f97316","pa4":"#14b8a6","sarcotoxin-1A":"#a855f7"};
+var ML={DP:"De novo (prototype-guided)",DT:"De novo (targeted)",AP:"Analog (prototype-guided)",AT:"Analog (targeted)",AU:"Analog (unconditional)",AMT:"Analog (motif+targeted)",MT:"Motif-guided (targeted)","":""};
 var FAMS=[];P.forEach(function(p){if(p.c==="analog"&&FAMS.indexOf(p.p)<0)FAMS.push(p.p)});FAMS.sort();
 
 /* ---- Help panel system ---- */

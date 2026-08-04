@@ -327,6 +327,23 @@ def load_help(help_dir):
 # Build peptide list
 # ══════════════════════════════════════════════════════════════════════════
 
+# Display-only corrections, applied where names enter the JSON payload; every
+# lookup above stays keyed by the pipeline's short_name.
+#
+# Two prototypes are keyed by a family shorthand that is not the peptide's
+# name -- the peptides tested are cecropin P1 and sarcotoxin IA.
+DISPLAY_NAMES = {'cecropin': 'Cecropin-P1', 'sarcotoxin': 'sarcotoxin-1A'}
+
+# The reference table stores de novo modes without the D their short names
+# carry (Ω-DP-1 is conditioning "P"), which is why the template's mode labels
+# (keyed DP/DT) did not resolve for de novo peptides.
+DENOVO_MODES = {'P': 'DP', 'T': 'DT'}
+
+
+def display_name(sn):
+    return DISPLAY_NAMES.get(sn, sn)
+
+
 def build_peptides(ref, mic_data, cc50_data, hc50_data,
                    disc_data, npn_data, bestsel_data, lps_data, dna_data,
                    disc_fc_data=None, npn_fc_data=None, proteo_data=None):
@@ -348,10 +365,14 @@ def build_peptides(ref, mic_data, cc50_data, hc50_data,
         ns = sum(1 for v in mics if v is not None)
         nm = sum(1 for i, v in enumerate(mics) if v is not None and strain_mdr[i])
 
+        mode = r.get('conditioning', '')
+        if r['category'] == 'de_novo':
+            mode = DENOVO_MODES.get(mode, mode)
+
         pt = {
-            'n': sn, 's': seq, 'c': r['category'],
-            'm': r.get('conditioning', ''),
-            'p': r.get('prototype_display') or r.get('prototype', ''),
+            'n': display_name(sn), 's': seq, 'c': r['category'],
+            'm': mode,
+            'p': display_name(r.get('prototype_display') or r.get('prototype', '')),
             'o': r.get('objective', ''),
             'L': int(float(r['length'])) if r.get('length') else 0,
             'mics': mics, 'mic': gmean,
