@@ -413,6 +413,10 @@ function ccVal(p){return p.cc!=null?Math.min(p.cc,SAFE_CAP):null}
 function hcVal(p){return(p.hc!=null&&p.hc<1e6)?Math.min(p.hc,SAFE_CAP):null}
 function ccTxt(p){return p.cc!=null?(p.cc>SAFE_CAP?">"+SAFE_CAP:p.cc.toFixed(1)+" \u03BCM"):"--"}
 function hcTxt(p){return p.hc!=null?(p.hc>SAFE_CAP?">"+SAFE_CAP:p.hc.toFixed(1)+" \u03BCM"):"--"}
+// ">128" HC50/CC50 are right-censored: the index built from them is a lower bound.
+function ccCen(p){return p.cc!=null&&p.cc>SAFE_CAP}
+function hcCen(p){return p.hc!=null&&p.hc>SAFE_CAP}
+function swTxt(v,cen,dec){if(v==null)return"--";var c=cen?">":"";return v>=1e4?">10\u2074":c+(dec==0?String(Math.round(v)):v.toFixed(dec))}
 
 // Activity threshold for strain counting
 var micThresh=4;
@@ -678,7 +682,7 @@ function dHTML(p,isPk){
   '<div class="g2 sp">'+
   (function(){var gv=p.mics?micAggFn(p.mics,tiSI):null;var sl=tiSI.length===20?"all 20":tiSI.length===0?"none":tiSI.length+" sel.";return'<span class="lb">'+micAggLabel()+' ('+sl+')</span><span class="vl">'+(gv?gv.toFixed(1)+" μM":"--")+'</span>'})()+
   '<span class="lb">CC50</span><span class="vl">'+ccTxt(p)+'</span>'+
-  (function(){var gv=p.mics?micAggFn(p.mics,tiSI):null;var cc=ccVal(p);var ti2=gv&&cc?cc/gv:null;var tc2=ti2>=50?"#16a34a":ti2>=10?"#ca8a04":ti2!=null?"#dc2626":"#a8a29e";return'<span class="lb">SW (CC50/MIC)</span><span style="font-weight:700;color:'+tc2+'">'+(ti2?(ti2>=1e4?">10⁴":ti2.toFixed(1)):"--")+'</span>'})()+
+  (function(){var gv=p.mics?micAggFn(p.mics,tiSI):null;var cc=ccVal(p);var ti2=gv&&cc?cc/gv:null;var tc2=ti2>=50?"#16a34a":ti2>=10?"#ca8a04":ti2!=null?"#dc2626":"#a8a29e";return'<span class="lb">SW (CC50/MIC)</span><span style="font-weight:700;color:'+tc2+'">'+swTxt(ti2,ccCen(p),1)+'</span>'})()+
   '<span class="lb">HC50</span><span>'+hcTxt(p)+'</span>'+
   '<span class="lb">Strains (MIC\u2264'+micThresh+')</span><span>'+countNS(p)+'/20 ('+countNM(p)+' MDR)</span></div>'+
   (p.disc||p.npn?'<div class="g2 sp">'+
@@ -1092,7 +1096,7 @@ document.getElementById("leads-export").addEventListener("click",function(){
     var r=['"'+p.n+'"','"'+p.s+'"',p.c,p._grp,p.L,p.q,p.h,
       mic?mic.toFixed(3):"",cc!=null?(p.cc>SAFE_CAP?">"+SAFE_CAP:cc.toFixed(3)):"",
       hc!=null?(p.hc>SAFE_CAP?">"+SAFE_CAP:hc.toFixed(3)):"",
-      mic&&cc?(cc/mic).toFixed(2):"",mic&&hc?(hc/mic).toFixed(2):"",
+      mic&&cc?(ccCen(p)?">":"")+(cc/mic).toFixed(2):"",mic&&hc?(hcCen(p)?">":"")+(hc/mic).toFixed(2):"",
       countNS(p),countNM(p),p.npn?p.npn[0]:"",p.disc?p.disc[0]:""];
     p.mics.forEach(function(v){r.push(v!=null?v:"")});
     rows.push(r.join(","));
@@ -1346,13 +1350,13 @@ var hmStrainVis=[];for(var _hi=0;_hi<20;_hi++)hmStrainVis.push(_hi); // visible 
       var micGm=micAggFn(p.mics,tiSI);
       var ticc=(ccV&&micGm)?ccV/micGm:null;
       var ticcBg=tiCol(ticc);
-      var ticcTxt=sv&&ticc!=null?(ticc>=1e4?'>10⁴':Math.round(ticc)):'';
+      var ticcTxt=sv?swTxt(ticc,ccCen(p),0):'';if(ticcTxt=='--')ticcTxt='';
       h+='<td class="c" style="background:'+ticcBg+'" data-n="'+p.n+'" data-c="ticc">'+ticcTxt+'</td>';
 
       // SW_HC50
       var tihc=(hcV&&micGm)?hcV/micGm:null;
       var tihcBg=tiCol(tihc);
-      var tihcTxt=sv&&tihc!=null?(tihc>=1e4?'>10⁴':Math.round(tihc)):'';
+      var tihcTxt=sv?swTxt(tihc,hcCen(p),0):'';if(tihcTxt=='--')tihcTxt='';
       h+='<td class="c" style="background:'+tihcBg+'" data-n="'+p.n+'" data-c="tihc">'+tihcTxt+'</td>';
 
       h+='</tr>';
@@ -1394,8 +1398,8 @@ var hmStrainVis=[];for(var _hi=0;_hi<20;_hi++)hmStrainVis.push(_hi); // visible 
         var txt='<b>'+p.n+'</b><br>';
         if(ci==="cc50"){txt+='CC50: '+ccTxt(p)}
         else if(ci==="hc50"){txt+='HC50: '+hcTxt(p)}
-        else if(ci==="ticc"){var mg=micAggFn(p.mics,tiSI);var cv=ccVal(p);var tv=mg&&cv?cv/mg:null;txt+='SW<sub>CC50</sub>: '+(tv!=null?tv.toFixed(1):'--')}
-        else if(ci==="tihc"){var mg2=micAggFn(p.mics,tiSI);var hv=hcVal(p);var tv2=mg2&&hv?hv/mg2:null;txt+='SW<sub>HC50</sub>: '+(tv2!=null?tv2.toFixed(1):'--')}
+        else if(ci==="ticc"){var mg=micAggFn(p.mics,tiSI);var cv=ccVal(p);var tv=mg&&cv?cv/mg:null;txt+='SW<sub>CC50</sub>: '+swTxt(tv,ccCen(p),1)}
+        else if(ci==="tihc"){var mg2=micAggFn(p.mics,tiSI);var hv=hcVal(p);var tv2=mg2&&hv?hv/mg2:null;txt+='SW<sub>HC50</sub>: '+swTxt(tv2,hcCen(p),1)}
         else{var v=p.mics[+ci];txt+=ST[+ci].s+'<br>MIC: '+(v!=null?v+' μM':'>64 μM')}
         tip.innerHTML=txt;tip.style.display='block';
         tip.style.left=(e.clientX+12)+'px';tip.style.top=(e.clientY-10)+'px';
@@ -2298,7 +2302,7 @@ document.getElementById("exportBtn").addEventListener("click",function(){
       p.q,p.h,p.hm,p.ar,p.ai,p.fc,p.pI,
       p.mic!=null?p.mic.toFixed(3):"",micSel!=null?micSel.toFixed(3):"",
       cc!=null?(p.cc>SAFE_CAP?">"+SAFE_CAP:cc.toFixed(3)):"",hc!=null?(p.hc>SAFE_CAP?">"+SAFE_CAP:hc.toFixed(3)):"",
-      tiSel!=null?tiSel.toFixed(2):"",thSel!=null?thSel.toFixed(2):"",
+      tiSel!=null?(ccCen(p)?">":"")+tiSel.toFixed(2):"",thSel!=null?(hcCen(p)?">":"")+thSel.toFixed(2):"",
       p.ns,p.nm
     ];
     p.mics.forEach(function(v){r.push(v!=null?v:"")});

@@ -180,14 +180,34 @@ def load_mic(path):
     return mic
 
 
+# Top tested concentration for the HC50/CC50 assays (uM). Values reported as
+# ">128" are right-censored: the peptide was tested and was NOT active at the
+# highest dose, which is the best possible outcome -- not missing data.
+SAFE_CAP = 128.0
+
+
 def load_single_col(path, col):
+    """Load a single-value assay: {name: value}.
+
+    Censored bounds like ">128" are stored just above SAFE_CAP. The frontend
+    tests `v > SAFE_CAP` to render them as ">128" and clamps them back to the
+    bound for plotting and selectivity arithmetic, so a censored peptide keeps
+    its (conservative, lower-bound) place in every view instead of vanishing.
+    """
     data = {}
     with open(path) as f:
         for row in csv.DictReader(f):
+            if col not in row or row[col] is None:
+                continue
+            s = row[col].strip()
+            censored = s[:1] in '<>'
             try:
-                data[_name(row)] = min(float(row[col]), 1e6)
-            except (ValueError, KeyError):
-                pass
+                v = float(s[1:] if censored else s)
+            except ValueError:
+                continue
+            if censored and s[0] == '>' and v >= SAFE_CAP:
+                v = SAFE_CAP * 2  # sentinel: any value > SAFE_CAP
+            data[_name(row)] = min(v, 1e6)
     return data
 
 
@@ -386,8 +406,12 @@ def build_peptides(ref, mic_data, cc50_data, hc50_data,
             'pro': proteo_data.get(sn),
         }
         pt.update(compute_descriptors(seq))
-        pt['ti'] = round(cc / gmean, 2) if (cc and gmean) else None
-        pt['th'] = round(hc / gmean, 2) if (hc and gmean) else None
+        # Censored HC50/CC50 clamp to the bound, so the index is a lower bound
+        # (the frontend renders it with a leading '>').
+        cc_i = min(cc, SAFE_CAP) if cc else None
+        hc_i = min(hc, SAFE_CAP) if hc else None
+        pt['ti'] = round(cc_i / gmean, 2) if (cc_i and gmean) else None
+        pt['th'] = round(hc_i / gmean, 2) if (hc_i and gmean) else None
         peptides.append(pt)
 
     return peptides
